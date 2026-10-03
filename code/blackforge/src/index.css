@@ -1,0 +1,216 @@
+@import 'tailwindcss';
+
+:root {
+  --bg-0: #07090d;
+  --bg-1: #0c1017;
+  --bg-2: #111821;
+  --bg-3: #18212d;
+  --border: #243041;
+  --border-strong: #334155;
+  --text: #e7edf6;
+  --text-muted: #8b9bb0;
+  --text-dim: #5d6d82;
+  --accent: #d7e2f0;
+  --break: #f04438;
+  --break-soft: rgba(240, 68, 56, 0.14);
+  --fix: #f5a524;
+  --fix-soft: rgba(245, 165, 36, 0.14);
+  --prove: #22c55e;
+  --prove-soft: rgba(34, 197, 94, 0.12);
+  --info: #38bdf8;
+  --info-soft: rgba(56, 189, 248, 0.12);
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  color: var(--text);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(56, 189, 248, 0.05), transparent 55%),
+    radial-gradient(900px 500px at 90% 0%, rgba(240, 68, 56, 0.05), transparent 50%),
+    linear-gradient(180deg, #090c12 0%, var(--bg-0) 40%, #05070a 100%);
+  background-attachment: fixed;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+}
+
+button,
+select {
+  font: inherit;
+}
+
+code,
+pre,
+.font-mono {
+  font-family: var(--mono);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a3648;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.85);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes terminal-in {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 280ms ease-out both;
+}
+
+.animate-terminal-in {
+  animation: terminal-in 220ms ease-out both;
+}
+
+.pulse-dot {
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+
+.panel {
+  background: linear-gradient(180deg, rgba(17, 24, 33, 0.96), rgba(12, 16, 23, 0.98));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(8, 11, 16, 0.55);
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.code-panel {
+  background: #080b10;
+  border: 1px solid #1c2635;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.code-panel pre {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  overflow: auto;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: #d5deeb;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.status-idle {
+  color: var(--text-dim);
+  background: rgba(93, 109, 130, 0.12);
+  border-color: rgba(93, 109, 130, 0.25);
+}
+
+.status-break {
+  color: #ff8b82;
+  background: var(--break-soft);
+  border-color: rgba(240, 68, 56, 0.35);
+}
+
+.status-fix {
+  color: #ffc56d;
+  background: var(--fix-soft);
+  border-color: rgba(245, 165, 36, 0.35);
+}
+
+.status-prove {
+  color: #6ee7a0;
+  background: var(--prove-soft);
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.status-info {
+  color: #7dd3fc;
+  background: var(--info-soft);
+  border-color: rgba(56, 189, 248, 0.35);
+}

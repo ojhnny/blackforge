@@ -27,7 +27,7 @@ export default function App() {
     <div className="relative min-h-screen">
       <Header phase={state.phase} isRunning={state.isRunning} />
 
-      <main className="mx-auto max-w-[1600px] space-y-4 px-4 py-4 sm:px-6 sm:py-5">
+      <main className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 sm:px-6 sm:py-6">
         <ForgeConsole
           repos={repos}
           selectedRepoId={state.selectedRepoId}
@@ -38,11 +38,13 @@ export default function App() {
           onReset={reset}
         />
 
-        <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
-          <AgentTimeline steps={state.timeline} />
+        <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
+          <div className="xl:sticky xl:top-4 xl:self-start">
+            <AgentTimeline steps={state.timeline} />
+          </div>
 
-          <div className="space-y-4">
-            <div className="grid gap-4 lg:grid-cols-2">
+          <div className="space-y-5">
+            <div className="grid gap-5 lg:grid-cols-2">
               <FindingPanel
                 finding={state.finding}
                 visible={state.reveal.finding}
@@ -53,7 +55,7 @@ export default function App() {
               />
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid gap-5 lg:grid-cols-2">
               <TerminalPanel
                 lines={state.terminalLines}
                 visible={state.reveal.terminal || state.terminalLines.length > 1}

@@ -26,10 +26,10 @@ export function TerminalPanel({ lines, visible }: TerminalPanelProps) {
           </div>
         ) : (
           <div className="code-panel min-h-[180px]">
-            <div className="flex items-center gap-1.5 border-b border-[#1c2635] px-3 py-1.5">
-              <span className="h-2 w-2 rounded-full bg-[#3a4556]" />
-              <span className="h-2 w-2 rounded-full bg-[#3a4556]" />
-              <span className="h-2 w-2 rounded-full bg-[#3a4556]" />
+            <div className="flex items-center gap-1.5 border-b border-[#243246] px-3 py-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#4a5a70]" />
+              <span className="h-2 w-2 rounded-full bg-[#4a5a70]" />
+              <span className="h-2 w-2 rounded-full bg-[#4a5a70]" />
               <span className="ml-2 font-mono text-[0.65rem] text-[var(--text-dim)]">
                 blackforge-exec
               </span>
@@ -40,12 +40,12 @@ export function TerminalPanel({ lines, visible }: TerminalPanelProps) {
                   key={`${index}-${line}`}
                   className={`animate-terminal-in ${
                     line.includes('FAILED') || line.includes('FAILURE')
-                      ? 'text-[var(--break)]'
+                      ? 'text-[#ffb0a8]'
                       : line.includes('PASSED') || line.includes('ACCEPTED')
-                        ? 'text-[var(--prove)]'
+                        ? 'text-[#8ff0c0]'
                         : line.startsWith('$')
                           ? 'text-[var(--info)]'
-                          : 'text-[#c7d2e0]'
+                          : 'text-[#dce5f2]'
                   }`}
                   style={{ animationDelay: `${Math.min(index * 20, 200)}ms` }}
                 >

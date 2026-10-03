@@ -55,7 +55,7 @@ export function VerificationPanel({
               </div>
             )}
 
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-3">
               <CheckRow
                 label="Attack test"
                 ok={patchResult.attack_test_passed}
@@ -99,22 +99,26 @@ function CheckRow({
 }) {
   return (
     <div
-      className={`rounded-md border px-3 py-2.5 ${
+      className={`rounded-md border px-3.5 py-3 ${
         ok
-          ? 'border-[rgba(34,197,94,0.3)] bg-[var(--prove-soft)]'
-          : 'border-[rgba(240,68,56,0.3)] bg-[var(--break-soft)]'
+          ? 'border-[rgba(52,211,153,0.4)] bg-[var(--prove-soft)]'
+          : 'border-[rgba(255,92,77,0.4)] bg-[var(--break-soft)]'
       }`}
     >
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2">
         {ok ? (
-          <CheckCircle2 className="h-3.5 w-3.5 text-[var(--prove)]" />
+          <CheckCircle2 className="h-4 w-4 text-[var(--prove)]" />
         ) : (
-          <XCircle className="h-3.5 w-3.5 text-[var(--break)]" />
+          <XCircle className="h-4 w-4 text-[var(--break)]" />
         )}
-        <span className="text-[0.78rem] font-medium text-[var(--text)]">{label}</span>
+        <span className="text-[0.82rem] font-semibold text-[var(--text)]">{label}</span>
       </div>
-      <p className="mt-1 font-mono text-[0.68rem] text-[var(--text-dim)]">
-        {ok ? (hint ? `passed · ${hint}` : 'passed') : 'failed'}
+      <p
+        className={`mt-1.5 font-mono text-[0.72rem] ${
+          ok ? 'text-[var(--prove)]' : 'text-[var(--break)]'
+        }`}
+      >
+        {ok ? (hint ? `PASSED · ${hint}` : 'PASSED') : 'FAILED'}
       </p>
     </div>
   )

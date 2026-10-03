@@ -39,23 +39,23 @@ export function DiffViewer({ patch, visible }: DiffViewerProps) {
               ))}
             </div>
             <div className="code-panel">
-              <div className="border-b border-[#1c2635] px-3 py-1.5 font-mono text-[0.65rem] text-[var(--text-dim)]">
+              <div className="border-b border-[#243246] px-3 py-1.5 font-mono text-[0.65rem] text-[var(--text-dim)]">
                 unified diff
               </div>
               <pre className="max-h-[320px]">
                 {patch.patch.split('\n').map((line, index) => {
-                  let color = 'text-[#c7d2e0]'
+                  let color = 'text-[#dce5f2]'
                   if (line.startsWith('+') && !line.startsWith('+++')) {
-                    color = 'text-[var(--prove)] bg-[rgba(34,197,94,0.08)]'
+                    color = 'text-[#8ff0c0] bg-[rgba(52,211,153,0.12)]'
                   } else if (line.startsWith('-') && !line.startsWith('---')) {
-                    color = 'text-[var(--break)] bg-[rgba(240,68,56,0.08)]'
+                    color = 'text-[#ffb0a8] bg-[rgba(255,92,77,0.12)]'
                   } else if (line.startsWith('@@')) {
                     color = 'text-[var(--info)]'
                   } else if (line.startsWith('---') || line.startsWith('+++')) {
                     color = 'text-[var(--text-dim)]'
                   }
                   return (
-                    <div key={index} className={`${color} px-1`}>
+                    <div key={index} className={`${color} px-1.5`}>
                       {line || ' '}
                     </div>
                   )

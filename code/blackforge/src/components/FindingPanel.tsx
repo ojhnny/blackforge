@@ -23,21 +23,21 @@ export function FindingPanel({ finding, visible }: FindingPanelProps) {
         {!visible || !finding ? (
           <EmptyState message="Waiting for Red Agent finding…" />
         ) : (
-          <div className="animate-fade-up space-y-4">
+          <div className="animate-fade-up space-y-5">
             <div>
-              <div className="mb-1 flex flex-wrap items-center gap-2">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span className="font-mono text-[0.78rem] text-[var(--info)]">{finding.id}</span>
                 <span className="status-pill status-idle">{finding.category}</span>
                 <span className="font-mono text-[0.68rem] text-[var(--text-dim)]">
                   conf {(finding.confidence * 100).toFixed(0)}%
                 </span>
               </div>
-              <p className="text-[0.9rem] leading-relaxed text-[var(--text)]">
+              <p className="text-[0.92rem] leading-relaxed text-[var(--text)]">
                 {finding.description}
               </p>
             </div>
 
-            <dl className="grid gap-3 sm:grid-cols-2">
+            <dl className="grid gap-3 md:grid-cols-2">
               <Meta label="File" value={finding.file} mono />
               <Meta
                 label="Function"
@@ -77,12 +77,12 @@ function Meta({
   mono?: boolean
 }) {
   return (
-    <div className="rounded-md border border-[var(--border)] bg-[rgba(8,11,16,0.55)] px-3 py-2">
+    <div className="rounded-md border border-[var(--border)] bg-[rgba(5,8,13,0.78)] px-4 py-2.5">
       <dt className="text-[0.65rem] font-medium uppercase tracking-[0.08em] text-[var(--text-dim)]">
         {label}
       </dt>
       <dd
-        className={`mt-1 break-all text-[0.8rem] text-[var(--text)] ${mono ? 'font-mono' : ''}`}
+        className={`mt-1.5 break-all text-[0.82rem] leading-snug text-[var(--accent)] ${mono ? 'font-mono' : ''}`}
       >
         {value}
       </dd>

@@ -91,11 +91,11 @@ function Metric({
           : 'text-[var(--text)]'
 
   return (
-    <div className="rounded-md border border-[var(--border)] bg-[rgba(8,11,16,0.55)] px-3 py-3">
+    <div className="rounded-md border border-[var(--border)] bg-[rgba(5,8,13,0.78)] px-3.5 py-3.5">
       <div className="text-[0.65rem] font-medium uppercase tracking-[0.08em] text-[var(--text-dim)]">
         {label}
       </div>
-      <div className={`mt-1.5 font-mono text-[1.35rem] font-semibold tracking-tight ${valueColor}`}>
+      <div className={`mt-2 font-mono text-[1.4rem] font-semibold tracking-tight ${valueColor}`}>
         {value}
       </div>
     </div>

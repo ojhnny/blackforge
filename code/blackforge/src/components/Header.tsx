@@ -26,22 +26,22 @@ interface HeaderProps {
 
 export function Header({ phase, isRunning }: HeaderProps) {
   return (
-    <header className="border-b border-[var(--border)] bg-[rgba(7,9,13,0.88)] backdrop-blur-md">
-      <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
+    <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[rgba(7,9,13,0.92)] backdrop-blur-md">
+      <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[var(--border-strong)] bg-[var(--bg-2)]">
-            <Flame className="h-4.5 w-4.5 text-[var(--break)]" strokeWidth={2.2} />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[rgba(255,92,77,0.35)] bg-[rgba(255,92,77,0.1)]">
+            <Flame className="h-4 w-4 text-[var(--break)]" strokeWidth={2.2} />
           </div>
           <div className="min-w-0">
             <div className="flex items-baseline gap-2">
-              <h1 className="truncate text-[1.05rem] font-semibold tracking-tight text-[var(--text)]">
+              <h1 className="truncate text-[1.1rem] font-semibold tracking-tight text-[var(--text)]">
                 BlackForge AI
               </h1>
               <span className="hidden font-mono text-[0.68rem] text-[var(--text-dim)] sm:inline">
                 v0.1 · forge console
               </span>
             </div>
-            <p className="truncate text-[0.78rem] text-[var(--text-muted)]">
+            <p className="mt-0.5 truncate text-[0.78rem] text-[var(--text-muted)]">
               Break it. Fix it. Prove it.
             </p>
           </div>

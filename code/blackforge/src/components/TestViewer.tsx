@@ -26,12 +26,12 @@ export function TestViewer({ code, visible }: TestViewerProps) {
           </div>
         ) : (
           <div className="code-panel animate-fade-up">
-            <div className="flex items-center justify-between border-b border-[#1c2635] px-3 py-1.5">
+            <div className="flex items-center justify-between border-b border-[#243246] px-3 py-1.5">
               <span className="font-mono text-[0.65rem] text-[var(--text-dim)]">pytest</span>
               <span className="status-pill status-break">failing</span>
             </div>
             <pre>
-              <code>{code}</code>
+              <code className="text-[#e4ebf5]">{code}</code>
             </pre>
           </div>
         )}

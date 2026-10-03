@@ -1,18 +1,17 @@
-# BlackForge AI — Forge Console
+# BlackForge AI — Analysis Console
 
-Frontend control-room dashboard for **BlackForge AI**: an autonomous bug discovery, repair, and verification system.
-
-Tagline: **Break it. Fix it. Prove it.**
-
-This app is a Phase 1 demo — React + TypeScript + Vite + Tailwind with realistic mock data and a simulated forge run. No auth, database, or backend.
+Engineering console for **BlackForge AI**: an autonomous debugging and verification system that discovers bugs, reproduces them with executable evidence, generates patches, reruns regressions, and accepts or rejects the result.
 
 ## What it shows
 
-- Target repo selector and forge run controls
-- Agent timeline (ingest → Red → Referee → Blue → Prove)
-- Finding detail, generated failing test, terminal evidence
-- Patch diff, verification results, and evaluation metrics
-- Timed reveal of each stage during a simulated run
+- Run configuration (repository, branch, commit, mode, categories, environment)
+- Live run summary and workflow stages (Analyze → Discover → Reproduce → Patch → Verify)
+- Findings list with severity, location, and verification state
+- Evidence (reproduction steps, generated test, execution log, stack trace)
+- Patch diff and verification results
+- Collapsible execution log, system diagnostics, and evaluation metrics
+
+This is a Phase 1 frontend demo with realistic mock data and a timed simulated analysis run. No auth, database, or backend.
 
 ## Stack
 
@@ -29,29 +28,27 @@ npm install
 npm run dev
 ```
 
-Dev server binds to **http://127.0.0.1:4827** (also `0.0.0.0:4827`).
+Dev server: **http://127.0.0.1:4827**
 
 ## Scripts
 
-| Command        | Description              |
-|----------------|--------------------------|
-| `npm run dev`  | Start Vite dev server    |
-| `npm run build`| Typecheck + production build |
+| Command | Description |
+|---|---|
+| `npm run dev` | Start Vite dev server |
+| `npm run build` | Typecheck + production build |
 | `npm run preview` | Preview production build |
-| `npm run lint` | Lint with oxlint         |
+| `npm run lint` | Lint with oxlint |
 
-## Project layout
+## Layout
 
 ```text
 src/
-  components/   # Console panels (timeline, finding, test, terminal, diff, verify, metrics)
-  data/mock.ts  # Mock repos, finding, patch, referee, metrics
-  hooks/        # Simulated forge run with timeline delays
-  types.ts      # Interfaces aligned with future backend schemas
+  components/   # Console sections
+  data/mock.ts  # Mock repos, findings, patch, metrics
+  hooks/        # Simulated analysis run
+  lib/          # Formatting helpers
+  types.ts
   App.tsx
 ```
 
-## Notes
-
-- Click **Start forge run** to play the Break → Fix → Prove simulation.
-- Data is mock-only; a FastAPI backend will replace these stubs in later phases.
+Click **Run Analysis** to play the simulated workflow.

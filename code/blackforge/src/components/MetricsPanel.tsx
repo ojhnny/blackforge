@@ -1,101 +1,71 @@
-import { Activity } from 'lucide-react'
-import type { ForgeMetrics } from '../types'
+import { pct } from '../lib/format'
+import type { EvalMetrics } from '../types'
 
 interface MetricsPanelProps {
-  metrics: ForgeMetrics | null
+  metrics: EvalMetrics | null
   visible: boolean
 }
 
 export function MetricsPanel({ metrics, visible }: MetricsPanelProps) {
   return (
-    <section className="panel h-full">
-      <div className="panel-header">
-        <div className="panel-title">
-          <Activity className="h-3.5 w-3.5 text-[var(--info)]" />
-          Metrics
-        </div>
-        {visible && metrics && (
-          <span className="status-pill status-prove">Forge run complete</span>
-        )}
+    <section className="surface">
+      <div className="surface-header">
+        <h2 className="section-label">Evaluation metrics</h2>
+        <span className="meta">Benchmark run</span>
       </div>
 
-      <div className="p-4 sm:p-5">
-        {!visible || !metrics ? (
-          <div className="flex min-h-[120px] items-center justify-center rounded-md border border-dashed border-[var(--border)] bg-[rgba(8,11,16,0.35)] px-4 text-center text-[0.8rem] text-[var(--text-dim)]">
-            Metrics appear after verification.
-          </div>
-        ) : (
-          <div className="animate-fade-up grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {!visible || !metrics ? (
+        <div className="empty">Metrics appear after verification.</div>
+      ) : (
+        <div className="fade-in space-y-4 p-4">
+          <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            <Metric label="Detection precision" value={pct(metrics.detection_precision)} />
+            <Metric label="Detection recall" value={pct(metrics.detection_recall)} />
+            <Metric label="Reproduction rate" value={pct(metrics.reproduction_rate)} />
+            <Metric label="Patch success rate" value={pct(metrics.patch_success_rate)} />
+            <Metric label="Regression rate" value={pct(metrics.regression_rate)} />
             <Metric
-              label="Reproduction rate"
-              value={pct(metrics.reproduction_rate)}
-              tone="prove"
-            />
-            <Metric
-              label="Patch acceptance"
-              value={pct(metrics.patch_acceptance_rate)}
-              tone="prove"
-            />
-            <Metric
-              label="Regression pass"
-              value={pct(metrics.regression_pass_rate)}
-              tone="prove"
-            />
-            <Metric
-              label="False positive"
-              value={pct(metrics.false_positive_rate)}
-              tone="idle"
-            />
-            <Metric
-              label="Proposals"
-              value={String(metrics.bug_proposal_count)}
-              tone="info"
-            />
-            <Metric
-              label="Avg time"
-              value={`${metrics.avg_time_seconds.toFixed(1)}s`}
-              tone="info"
-            />
-            <Metric
-              label="Cost / verified patch"
-              value={`$${metrics.cost_per_verified_patch.toFixed(2)}`}
-              tone="fix"
+              label="Mean repair attempts"
+              value={metrics.mean_repair_attempts.toFixed(1)}
             />
           </div>
-        )}
-      </div>
+
+          {metrics.ranking_enabled && (
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h3 className="text-[12px] font-semibold text-[var(--text-secondary)]">
+                  Ranking model
+                </h3>
+                <span className="meta">{metrics.ranking_model}</span>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-4">
+                <Metric
+                  label="Precision"
+                  value={pct(metrics.ranking_precision ?? 0)}
+                />
+                <Metric
+                  label="Recall"
+                  value={pct(metrics.ranking_recall ?? 0)}
+                />
+                <Metric label="F1" value={pct(metrics.ranking_f1 ?? 0)} />
+                <Metric
+                  label="ROC-AUC"
+                  value={(metrics.ranking_roc_auc ?? 0).toFixed(2)}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </section>
   )
 }
 
-function pct(value: number): string {
-  return `${(value * 100).toFixed(0)}%`
-}
-
-function Metric({
-  label,
-  value,
-  tone,
-}: {
-  label: string
-  value: string
-  tone: 'prove' | 'fix' | 'info' | 'idle'
-}) {
-  const valueColor =
-    tone === 'prove'
-      ? 'text-[var(--prove)]'
-      : tone === 'fix'
-        ? 'text-[var(--fix)]'
-        : tone === 'info'
-          ? 'text-[var(--info)]'
-          : 'text-[var(--text)]'
-
+function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-[var(--border)] bg-[rgba(5,8,13,0.78)] px-3.5 py-3.5">
-      <div className="text-[0.65rem] font-medium uppercase tracking-[0.08em] text-[var(--text-dim)]">
-        {label}
-      </div>
-      <div className={`mt-2 font-mono text-[1.4rem] font-semibold tracking-tight ${valueColor}`}>
+    <div className="rounded-[var(--radius)] border border-[var(--border-muted)] px-3 py-2.5">
+      <div className="text-[11px] text-[var(--text-muted)]">{label}</div>
+      <div className="mt-1 text-[16px] font-semibold tracking-tight text-[var(--text)]">
         {value}
       </div>
     </div>

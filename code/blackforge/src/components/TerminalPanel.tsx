@@ -1,62 +1,56 @@
-import { TerminalSquare } from 'lucide-react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 
 interface TerminalPanelProps {
   lines: string[]
-  visible: boolean
+  open: boolean
+  onToggle: (open: boolean) => void
 }
 
-export function TerminalPanel({ lines, visible }: TerminalPanelProps) {
-  const show = visible && lines.length > 0
-
+export function TerminalPanel({ lines, open, onToggle }: TerminalPanelProps) {
   return (
-    <section className="panel h-full">
-      <div className="panel-header">
-        <div className="panel-title">
-          <TerminalSquare className="h-3.5 w-3.5 text-[var(--info)]" />
-          Execution Terminal
+    <section className="surface">
+      <button
+        type="button"
+        className="surface-header w-full cursor-pointer text-left"
+        onClick={() => onToggle(!open)}
+      >
+        <div className="flex items-center gap-2">
+          {open ? (
+            <ChevronDown className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+          )}
+          <h2 className="section-label">Execution log</h2>
         </div>
-        <span className="font-mono text-[0.68rem] text-[var(--text-dim)]">
-          docker · pytest
-        </span>
-      </div>
-      <div className="p-3 sm:p-4">
-        {!show ? (
-          <div className="flex min-h-[180px] items-center justify-center rounded-md border border-dashed border-[var(--border)] bg-[rgba(8,11,16,0.35)] px-4 text-center text-[0.8rem] text-[var(--text-dim)]">
-            Terminal idle — start a forge run to stream evidence.
-          </div>
-        ) : (
-          <div className="code-panel min-h-[180px]">
-            <div className="flex items-center gap-1.5 border-b border-[#243246] px-3 py-1.5">
-              <span className="h-2 w-2 rounded-full bg-[#4a5a70]" />
-              <span className="h-2 w-2 rounded-full bg-[#4a5a70]" />
-              <span className="h-2 w-2 rounded-full bg-[#4a5a70]" />
-              <span className="ml-2 font-mono text-[0.65rem] text-[var(--text-dim)]">
-                blackforge-exec
-              </span>
+        <span className="meta">{lines.length ? `${lines.length} lines` : 'Collapsed'}</span>
+      </button>
+
+      {open && (
+        <div className="p-3">
+          {lines.length === 0 ? (
+            <div className="empty">No execution output yet.</div>
+          ) : (
+            <div className="code-block max-h-[220px]">
+              <pre>
+                {lines.map((line, index) => (
+                  <div
+                    key={`${index}-${line}`}
+                    className={
+                      line.includes('FAILED')
+                        ? 'text-[var(--danger)]'
+                        : line.includes('PASSED') || line.includes('accepted')
+                          ? 'text-[var(--success)]'
+                          : undefined
+                    }
+                  >
+                    {line}
+                  </div>
+                ))}
+              </pre>
             </div>
-            <pre className="max-h-[280px] space-y-1">
-              {lines.map((line, index) => (
-                <div
-                  key={`${index}-${line}`}
-                  className={`animate-terminal-in ${
-                    line.includes('FAILED') || line.includes('FAILURE')
-                      ? 'text-[#ffb0a8]'
-                      : line.includes('PASSED') || line.includes('ACCEPTED')
-                        ? 'text-[#8ff0c0]'
-                        : line.startsWith('$')
-                          ? 'text-[var(--info)]'
-                          : 'text-[#dce5f2]'
-                  }`}
-                  style={{ animationDelay: `${Math.min(index * 20, 200)}ms` }}
-                >
-                  {line}
-                </div>
-              ))}
-              <div className="text-[var(--text-dim)]">█</div>
-            </pre>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </section>
   )
 }

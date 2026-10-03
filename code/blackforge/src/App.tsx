@@ -1,80 +1,104 @@
-import { AgentTimeline } from './components/AgentTimeline'
-import { DiffViewer } from './components/DiffViewer'
-import { FindingPanel } from './components/FindingPanel'
-import { ForgeConsole } from './components/ForgeConsole'
+import { EvidencePanel } from './components/EvidencePanel'
+import { FindingDetail } from './components/FindingDetail'
+import { FindingsList } from './components/FindingsList'
 import { Header } from './components/Header'
 import { MetricsPanel } from './components/MetricsPanel'
+import { PatchPanel } from './components/PatchPanel'
+import { RunConfig } from './components/RunConfig'
+import { RunSummary } from './components/RunSummary'
+import { SystemActivity } from './components/SystemActivity'
 import { TerminalPanel } from './components/TerminalPanel'
-import { TestViewer } from './components/TestViewer'
 import { VerificationPanel } from './components/VerificationPanel'
-import { useForgeRun } from './hooks/useForgeRun'
-import type { RunPhase } from './types'
-
-const PHASE_COPY: Record<RunPhase, string> = {
-  idle: 'Ready to forge',
-  ingesting: 'Ingesting target repo',
-  breaking: 'Break phase in progress',
-  reproducing: 'Referee reproducing failure',
-  fixing: 'Fix phase in progress',
-  proving: 'Prove phase in progress',
-  complete: 'Forge run complete',
-}
+import { Workflow } from './components/Workflow'
+import { useAnalysisRun } from './hooks/useAnalysisRun'
 
 export default function App() {
-  const { state, repos, selectRepo, startRun, reset } = useForgeRun()
+  const {
+    state,
+    repos,
+    selectedRepo,
+    selectedFinding,
+    updateConfig,
+    toggleCategory,
+    selectFinding,
+    setTerminalOpen,
+    startRun,
+    reset,
+  } = useAnalysisRun()
 
   return (
-    <div className="relative min-h-screen">
-      <Header phase={state.phase} isRunning={state.isRunning} />
+    <div className="app-shell">
+      <Header
+        projectName={selectedRepo.path}
+        status={state.status}
+        runId={state.runId}
+        startedAt={state.startedAt}
+        completedAt={state.completedAt}
+        now={state.now}
+      />
 
-      <main className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 sm:px-6 sm:py-6">
-        <ForgeConsole
+      <main className="mx-auto max-w-[1440px] space-y-3 px-4 py-4 sm:px-5">
+        <RunConfig
           repos={repos}
-          selectedRepoId={state.selectedRepoId}
-          isRunning={state.isRunning}
-          phaseLabel={PHASE_COPY[state.phase]}
-          onSelectRepo={selectRepo}
+          config={state.config}
+          isRunning={state.status === 'running'}
+          onChange={updateConfig}
+          onToggleCategory={toggleCategory}
           onStart={startRun}
           onReset={reset}
         />
 
-        <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
-          <div className="xl:sticky xl:top-4 xl:self-start">
-            <AgentTimeline steps={state.timeline} />
-          </div>
+        <RunSummary summary={state.summary} visible={state.reveal.summary} />
 
-          <div className="space-y-5">
-            <div className="grid gap-5 lg:grid-cols-2">
-              <FindingPanel
-                finding={state.finding}
-                visible={state.reveal.finding}
-              />
-              <TestViewer
-                code={state.finding?.generated_test ?? null}
-                visible={state.reveal.test}
-              />
-            </div>
+        <div className="grid gap-3 xl:grid-cols-[280px_minmax(0,1fr)]">
+          <Workflow stages={state.workflow} />
 
-            <div className="grid gap-5 lg:grid-cols-2">
-              <TerminalPanel
-                lines={state.terminalLines}
-                visible={state.reveal.terminal || state.terminalLines.length > 1}
-              />
-              <DiffViewer patch={state.patch} visible={state.reveal.diff} />
-            </div>
-
-            <VerificationPanel
-              referee={state.referee}
-              patchResult={state.patchResult}
-              visible={state.reveal.verification}
+          <div className="grid gap-3 lg:grid-cols-[300px_minmax(0,1fr)]">
+            <FindingsList
+              findings={state.findings}
+              selectedId={state.selectedFindingId}
+              visible={state.reveal.findings}
+              onSelect={selectFinding}
             />
-
-            <MetricsPanel
-              metrics={state.metrics}
-              visible={state.reveal.metrics}
+            <FindingDetail
+              finding={selectedFinding}
+              visible={state.reveal.findings}
             />
           </div>
         </div>
+
+        <EvidencePanel
+          finding={selectedFinding}
+          referee={state.referee}
+          patchResult={state.patchResult}
+          visible={state.reveal.evidence}
+        />
+
+        <div className="grid gap-3 lg:grid-cols-2">
+          <PatchPanel
+            patch={state.patch}
+            patchResult={state.patchResult}
+            visible={state.reveal.patch}
+          />
+          <VerificationPanel
+            referee={state.referee}
+            patchResult={state.patchResult}
+            visible={state.reveal.verification}
+          />
+        </div>
+
+        <TerminalPanel
+          lines={state.terminalLines}
+          open={state.terminalOpen}
+          onToggle={setTerminalOpen}
+        />
+
+        <SystemActivity activity={state.activity} />
+
+        <MetricsPanel
+          metrics={state.metrics}
+          visible={state.reveal.metrics}
+        />
       </main>
     </div>
   )

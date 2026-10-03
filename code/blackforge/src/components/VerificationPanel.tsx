@@ -1,4 +1,3 @@
-import { ShieldCheck, CheckCircle2, XCircle } from 'lucide-react'
 import type { PatchResult, RefereeResult } from '../types'
 
 interface VerificationPanelProps {
@@ -12,19 +11,14 @@ export function VerificationPanel({
   patchResult,
   visible,
 }: VerificationPanelProps) {
-  const show = visible && patchResult
-
   return (
-    <section className="panel h-full">
-      <div className="panel-header">
-        <div className="panel-title">
-          <ShieldCheck className="h-3.5 w-3.5 text-[var(--prove)]" />
-          Prove · Verification
-        </div>
-        {show && (
+    <section className="surface">
+      <div className="surface-header">
+        <h2 className="section-label">Verification</h2>
+        {visible && patchResult && (
           <span
-            className={`status-pill ${
-              patchResult.patch_accepted ? 'status-prove' : 'status-break'
+            className={`badge ${
+              patchResult.patch_accepted ? 'badge-success' : 'badge-danger'
             }`}
           >
             {patchResult.patch_accepted ? 'Patch accepted' : 'Patch rejected'}
@@ -32,94 +26,71 @@ export function VerificationPanel({
         )}
       </div>
 
-      <div className="p-4 sm:p-5">
-        {!show ? (
-          <div className="flex min-h-[160px] items-center justify-center rounded-md border border-dashed border-[var(--border)] bg-[rgba(8,11,16,0.35)] px-4 text-center text-[0.8rem] text-[var(--text-dim)]">
-            Waiting for referee + verification evidence…
-          </div>
-        ) : (
-          <div className="animate-fade-up space-y-4">
-            {referee && (
-              <div className="rounded-md border border-[rgba(34,197,94,0.3)] bg-[var(--prove-soft)] px-3 py-2.5">
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <span className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-[var(--prove)]">
-                    Failure reproduced
-                  </span>
-                  <span className="font-mono text-[0.68rem] text-[var(--text-dim)]">
-                    {referee.verdict}
-                  </span>
-                </div>
-                <p className="text-[0.8rem] leading-relaxed text-[var(--text)]">
-                  {referee.evidence}
-                </p>
-              </div>
-            )}
+      {!visible || !patchResult ? (
+        <div className="empty">
+          Verification results appear after patch execution.
+        </div>
+      ) : (
+        <div className="fade-in space-y-3 p-4">
+          {referee && (
+            <p className="text-[13px] text-[var(--text-secondary)]">
+              {referee.evidence}
+            </p>
+          )}
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              <CheckRow
-                label="Attack test"
-                ok={patchResult.attack_test_passed}
-              />
-              <CheckRow
-                label="Regression"
-                ok={patchResult.regression_tests_passed}
-                hint="clean"
-              />
-              <CheckRow
-                label="Static checks"
-                ok={patchResult.static_checks_passed}
-              />
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <Result
+              label="Original failing test"
+              value={patchResult.attack_test_passed ? 'PASS' : 'FAIL'}
+              ok={patchResult.attack_test_passed}
+            />
+            <Result
+              label="Regression suite"
+              value={`${patchResult.regression_passed}/${patchResult.regression_total} PASS`}
+              ok={patchResult.regression_tests_passed}
+            />
+            <Result
+              label="Static checks"
+              value={patchResult.static_checks_passed ? 'PASS' : 'FAIL'}
+              ok={patchResult.static_checks_passed}
+            />
+            <Result
+              label="New failures"
+              value={String(patchResult.new_failures.length)}
+              ok={patchResult.new_failures.length === 0}
+            />
+          </div>
+
+          {!patchResult.patch_accepted && patchResult.rejection_reason && (
+            <div className="rounded-[var(--radius)] border border-[var(--border)] px-3 py-2 text-[13px] text-[var(--text)]">
+              Rejection reason: {patchResult.rejection_reason}
             </div>
-
-            {referee && (
-              <div className="code-panel">
-                <div className="border-b border-[#1c2635] px-3 py-1.5 font-mono text-[0.65rem] text-[var(--text-dim)]">
-                  referee execution_output
-                </div>
-                <pre className="max-h-[200px] text-[0.72rem] text-[#b7c3d4]">
-                  {referee.execution_output}
-                </pre>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </section>
   )
 }
 
-function CheckRow({
+function Result({
   label,
+  value,
   ok,
-  hint,
 }: {
   label: string
+  value: string
   ok: boolean
-  hint?: string
 }) {
   return (
-    <div
-      className={`rounded-md border px-3.5 py-3 ${
-        ok
-          ? 'border-[rgba(52,211,153,0.4)] bg-[var(--prove-soft)]'
-          : 'border-[rgba(255,92,77,0.4)] bg-[var(--break-soft)]'
-      }`}
-    >
-      <div className="flex items-center gap-2">
-        {ok ? (
-          <CheckCircle2 className="h-4 w-4 text-[var(--prove)]" />
-        ) : (
-          <XCircle className="h-4 w-4 text-[var(--break)]" />
-        )}
-        <span className="text-[0.82rem] font-semibold text-[var(--text)]">{label}</span>
-      </div>
-      <p
-        className={`mt-1.5 font-mono text-[0.72rem] ${
-          ok ? 'text-[var(--prove)]' : 'text-[var(--break)]'
+    <div className="rounded-[var(--radius)] border border-[var(--border-muted)] px-3 py-2.5">
+      <div className="text-[12px] text-[var(--text-muted)]">{label}</div>
+      <div
+        className={`mt-1 text-[13px] font-semibold ${
+          ok ? 'text-[var(--success)]' : 'text-[var(--danger)]'
         }`}
       >
-        {ok ? (hint ? `PASSED · ${hint}` : 'PASSED') : 'FAILED'}
-      </p>
+        {value}
+      </div>
     </div>
   )
 }

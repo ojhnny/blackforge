@@ -21,8 +21,8 @@ export function EvidencePanel({
   return (
     <section className="surface">
       <div className="surface-header">
-        <h2 className="section-label">Evidence</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <h2 className="section-label">Evidence</h2>
           {visible && referee?.reproduced && (
             <span className="badge badge-danger">FAILED before patch</span>
           )}

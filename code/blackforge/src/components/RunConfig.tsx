@@ -5,11 +5,13 @@ import {
   ENVIRONMENTS,
 } from '../data/mock'
 import type { BugCategory, RunConfig as Config, TargetRepo } from '../types'
+import type { ReactNode } from 'react'
 
 interface RunConfigProps {
   repos: TargetRepo[]
   config: Config
   isRunning: boolean
+  progressMessage: string | null
   onChange: (partial: Partial<Config>) => void
   onToggleCategory: (category: BugCategory) => void
   onStart: () => void
@@ -20,21 +22,30 @@ export function RunConfig({
   repos,
   config,
   isRunning,
+  progressMessage,
   onChange,
   onToggleCategory,
   onStart,
   onReset,
 }: RunConfigProps) {
+  const modeLabel =
+    ANALYSIS_MODES.find((mode) => mode.id === config.mode)?.label ?? '—'
+  const envLabel =
+    ENVIRONMENTS.find((env) => env.id === config.environment)?.label ?? '—'
+
   return (
     <section className="surface">
       <div className="surface-header">
         <h2 className="section-label">Run configuration</h2>
-        <span className="meta">Evidence required for every finding</span>
+        {progressMessage ? (
+          <span className="meta">{progressMessage}</span>
+        ) : (
+          <span className="meta">Evidence required for every finding</span>
+        )}
       </div>
 
-      <div className="grid gap-4 p-4 md:grid-cols-2">
-        <label>
-          <span className="field-label">Repository</span>
+      <div className="grid gap-x-4 gap-y-3 p-3 md:grid-cols-3 lg:grid-cols-6">
+        <Field label="Repository">
           <select
             className="control"
             disabled={isRunning}
@@ -47,68 +58,27 @@ export function RunConfig({
               </option>
             ))}
           </select>
-        </label>
+        </Field>
 
-        <label>
-          <span className="field-label">Branch</span>
+        <Field label="Branch">
           <input
             className="control"
             disabled={isRunning}
             value={config.branch}
             onChange={(event) => onChange({ branch: event.target.value })}
           />
-        </label>
+        </Field>
 
-        <label>
-          <span className="field-label">Commit</span>
+        <Field label="Commit">
           <input
             className="control mono"
             disabled={isRunning}
             value={config.commit}
             onChange={(event) => onChange({ commit: event.target.value })}
           />
-        </label>
+        </Field>
 
-        <label>
-          <span className="field-label">Analysis mode</span>
-          <select
-            className="control"
-            disabled={isRunning}
-            value={config.mode}
-            onChange={(event) =>
-              onChange({ mode: event.target.value as Config['mode'] })
-            }
-          >
-            {ANALYSIS_MODES.map((mode) => (
-              <option key={mode.id} value={mode.id}>
-                {mode.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div>
-          <span className="field-label">Bug categories</span>
-          <div className="flex flex-wrap gap-2 pt-0.5">
-            {CATEGORY_OPTIONS.map((category) => {
-              const active = config.categories.includes(category.id)
-              return (
-                <button
-                  key={category.id}
-                  type="button"
-                  disabled={isRunning}
-                  onClick={() => onToggleCategory(category.id)}
-                  className={`badge ${active ? 'badge-info' : 'badge-neutral'}`}
-                >
-                  {category.label}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        <label>
-          <span className="field-label">Execution environment</span>
+        <Field label="Environment">
           <select
             className="control"
             disabled={isRunning}
@@ -125,24 +95,77 @@ export function RunConfig({
               </option>
             ))}
           </select>
-        </label>
+        </Field>
+
+        <Field label="Mode">
+          <select
+            className="control"
+            disabled={isRunning}
+            value={config.mode}
+            onChange={(event) =>
+              onChange({ mode: event.target.value as Config['mode'] })
+            }
+          >
+            {ANALYSIS_MODES.map((mode) => (
+              <option key={mode.id} value={mode.id}>
+                {mode.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <div className="flex items-end gap-2">
+          <button
+            type="button"
+            className="btn btn-primary flex-1"
+            disabled={isRunning}
+            onClick={onStart}
+          >
+            <Play className="h-3.5 w-3.5" fill="currentColor" />
+            Run Analysis
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={onReset}>
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset
+          </button>
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-muted)] px-4 py-3">
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={isRunning}
-          onClick={onStart}
-        >
-          <Play className="h-3.5 w-3.5" fill="currentColor" />
-          Run Analysis
-        </button>
-        <button type="button" className="btn btn-secondary" onClick={onReset}>
-          <RotateCcw className="h-3.5 w-3.5" />
-          Reset
-        </button>
+      <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-muted)] px-3 py-2">
+        <span className="meta">Analysis categories</span>
+        {CATEGORY_OPTIONS.map((category) => {
+          const active = config.categories.includes(category.id)
+          return (
+            <button
+              key={category.id}
+              type="button"
+              disabled={isRunning}
+              onClick={() => onToggleCategory(category.id)}
+              className={`badge ${active ? 'badge-info' : 'badge-neutral'}`}
+            >
+              {category.label}
+            </button>
+          )
+        })}
+        <span className="meta ml-auto hidden sm:inline">
+          {envLabel} · {modeLabel}
+        </span>
       </div>
     </section>
+  )
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string
+  children: ReactNode
+}) {
+  return (
+    <label className="block min-w-0">
+      <span className="field-label">{label}</span>
+      {children}
+    </label>
   )
 }

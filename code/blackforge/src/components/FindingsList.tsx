@@ -6,6 +6,7 @@ interface FindingsListProps {
   findings: Finding[]
   selectedId: string | null
   visible: boolean
+  testsExecuted: number | null
   onSelect: (id: string) => void
 }
 
@@ -13,6 +14,7 @@ export function FindingsList({
   findings,
   selectedId,
   visible,
+  testsExecuted,
   onSelect,
 }: FindingsListProps) {
   return (
@@ -24,10 +26,19 @@ export function FindingsList({
         </span>
       </div>
 
-      {!visible || findings.length === 0 ? (
-        <div className="empty">No findings yet.</div>
+      {!visible ? (
+        <div className="empty">Findings appear after discovery.</div>
+      ) : findings.length === 0 ? (
+        <div className="empty">
+          <div className="mb-1 text-[var(--text-secondary)]">
+            No reproducible defects found.
+          </div>
+          <div className="meta">
+            {testsExecuted ?? 0} tests executed · 0 verified findings
+          </div>
+        </div>
       ) : (
-        <div className="fade-in max-h-[420px] overflow-auto">
+        <div className="fade-in max-h-[440px] overflow-auto">
           {findings.map((finding) => {
             const active = finding.id === selectedId
             return (
@@ -48,13 +59,16 @@ export function FindingsList({
                   {finding.file}
                   {finding.line != null ? `:${finding.line}` : ''}
                 </div>
-                <div className="mt-0.5 text-[12px] text-[var(--text-secondary)]">
+                <div className="mono mt-0.5 text-[12px] text-[var(--text-secondary)]">
                   {finding.function_or_query
                     ? `${finding.function_or_query}()`
-                    : finding.summary}
+                    : '—'}
                 </div>
-                <div className="mt-1 meta">
-                  Confidence {(finding.confidence * 100).toFixed(0)}%
+                <div className="mt-1.5 flex items-center justify-between gap-2">
+                  <span className="meta">
+                    Confidence {(finding.confidence * 100).toFixed(0)}%
+                  </span>
+                  <span className="mono meta">{finding.id}</span>
                 </div>
               </button>
             )
@@ -77,10 +91,12 @@ function SeverityBadge({ severity }: { severity: Finding['severity'] }) {
 
 function VerificationBadge({ state }: { state: Finding['verification_state'] }) {
   const cls =
-    state === 'patched' || state === 'verified'
+    state === 'patch_accepted' || state === 'verified'
       ? 'badge-success'
-      : state === 'not_reproduced' || state === 'rejected'
+      : state === 'not_reproduced' || state === 'patch_rejected'
         ? 'badge-danger'
-        : 'badge-neutral'
+      : state === 'verifying'
+        ? 'badge-info'
+        : 'badge-warning'
   return <span className={`badge ${cls}`}>{verificationLabel(state)}</span>
 }

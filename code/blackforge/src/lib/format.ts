@@ -7,11 +7,17 @@ export function formatElapsed(
 ): string {
   if (!startedAt) return '—'
   const end = endedAt ?? now
-  const totalSeconds = Math.max(0, Math.floor((end - startedAt) / 1000))
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  if (minutes === 0) return `${seconds}s`
-  return `${minutes}m ${seconds.toString().padStart(2, '0')}s`
+  const ms = Math.max(0, end - startedAt)
+  const seconds = ms / 1000
+  if (seconds < 60) return `${seconds.toFixed(1)}s`
+  const minutes = Math.floor(seconds / 60)
+  const rem = seconds - minutes * 60
+  return `${minutes}m ${rem.toFixed(1)}s`
+}
+
+export function formatStageDuration(ms: number | null): string {
+  if (ms == null) return '—'
+  return `${(ms / 1000).toFixed(1)}s`
 }
 
 export function statusLabel(status: RunStatus): string {
@@ -19,40 +25,48 @@ export function statusLabel(status: RunStatus): string {
     case 'idle':
       return 'Idle'
     case 'running':
-      return 'Running'
+      return 'Analyzing'
     case 'completed':
       return 'Completed'
     case 'failed':
       return 'Failed'
+    case 'cancelled':
+      return 'Cancelled'
   }
 }
 
 export function severityLabel(severity: Severity): string {
   switch (severity) {
     case 'high':
-      return 'High'
+      return 'HIGH'
     case 'medium':
-      return 'Medium'
+      return 'MEDIUM'
     case 'low':
-      return 'Low'
+      return 'LOW'
   }
 }
 
 export function verificationLabel(state: VerificationState): string {
   switch (state) {
-    case 'pending':
-      return 'Pending'
+    case 'pending_verification':
+      return 'Pending verification'
+    case 'verifying':
+      return 'Verifying'
     case 'verified':
       return 'Verified'
     case 'not_reproduced':
       return 'Not reproduced'
-    case 'rejected':
-      return 'Rejected'
-    case 'patched':
-      return 'Patched'
+    case 'patch_accepted':
+      return 'Patch accepted'
+    case 'patch_rejected':
+      return 'Patch rejected'
   }
 }
 
 export function pct(value: number): string {
   return `${(value * 100).toFixed(0)}%`
+}
+
+export function pctDecimal(value: number): string {
+  return value.toFixed(2)
 }

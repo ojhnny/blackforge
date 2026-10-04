@@ -7,7 +7,7 @@ export type BugCategory =
 
 export type Severity = 'low' | 'medium' | 'high'
 
-export type RunStatus = 'idle' | 'running' | 'completed' | 'failed'
+export type RunStatus = 'idle' | 'running' | 'completed' | 'failed' | 'cancelled'
 
 export type WorkflowStageId =
   | 'analyze'
@@ -19,15 +19,18 @@ export type WorkflowStageId =
 export type StageStatus = 'pending' | 'active' | 'done' | 'failed'
 
 export type VerificationState =
-  | 'pending'
+  | 'pending_verification'
+  | 'verifying'
   | 'verified'
   | 'not_reproduced'
-  | 'rejected'
-  | 'patched'
+  | 'patch_accepted'
+  | 'patch_rejected'
 
 export type AnalysisMode = 'full' | 'discover_only' | 'verify_existing'
 
 export type ExecutionEnvironment = 'docker_python_312' | 'docker_python_311'
+
+export type AppView = 'run' | 'evaluation'
 
 export interface TargetRepo {
   id: string
@@ -52,8 +55,11 @@ export interface Finding {
   stack_trace: string
   reproduction_steps: string[]
   generated_test: string
+  test_name: string
+  test_path: string
   severity: Severity
   confidence: number
+  ranking_score: number | null
   verification_state: VerificationState
 }
 
@@ -69,6 +75,7 @@ export interface RefereeResult {
 }
 
 export interface PatchAttempt {
+  id: string
   finding_id: string
   files_modified: string[]
   patch: string
@@ -80,6 +87,10 @@ export interface PatchAttempt {
 
 export interface PatchResult {
   finding_id: string
+  patch_id: string
+  reproduced: boolean
+  generated_test: boolean
+  patch_applied: boolean
   attack_test_passed: boolean
   regression_tests_passed: boolean
   regression_passed: number
@@ -98,7 +109,6 @@ export interface RunSummary {
   patches_accepted: number
   regressions_introduced: number
   tests_executed: number
-  duration_label: string
 }
 
 export interface EvalMetrics {
@@ -108,12 +118,22 @@ export interface EvalMetrics {
   patch_success_rate: number
   regression_rate: number
   mean_repair_attempts: number
+  mean_verification_calls: number
+  average_cost_per_finding: number
   ranking_enabled: boolean
   ranking_model: string | null
+  ranking_framework: string | null
   ranking_precision: number | null
   ranking_recall: number | null
   ranking_f1: number | null
   ranking_roc_auc: number | null
+}
+
+export interface PipelineComparison {
+  name: string
+  reproduction_rate: number
+  patch_success_rate: number
+  false_positive_rate: number
 }
 
 export interface SystemActivity {
@@ -130,6 +150,7 @@ export interface WorkflowStage {
   delayMs: number
   status: StageStatus
   durationMs: number | null
+  progressLabel: string | null
 }
 
 export interface RevealState {
@@ -150,11 +171,20 @@ export interface RunConfig {
   environment: ExecutionEnvironment
 }
 
+export interface RunError {
+  message: string
+  detail: string
+  stage: WorkflowStageId
+}
+
 export interface AnalysisState {
   status: RunStatus
+  view: AppView
   runId: string | null
   config: RunConfig
   workflow: WorkflowStage[]
+  selectedStageId: WorkflowStageId | null
+  progressMessage: string | null
   reveal: RevealState
   findings: Finding[]
   selectedFindingId: string | null
@@ -163,7 +193,9 @@ export interface AnalysisState {
   patchResult: PatchResult | null
   summary: RunSummary | null
   metrics: EvalMetrics | null
+  comparisons: PipelineComparison[]
   activity: SystemActivity | null
+  error: RunError | null
   terminalLines: string[]
   terminalOpen: boolean
   startedAt: number | null

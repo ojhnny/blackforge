@@ -6,6 +6,7 @@ import type {
   Finding,
   PatchAttempt,
   PatchResult,
+  PipelineComparison,
   RefereeResult,
   RunSummary,
   SystemActivity,
@@ -19,9 +20,9 @@ export const TARGET_REPOS: TargetRepo[] = [
     name: 'buggy_python',
     path: 'examples/buggy_python',
     defaultBranch: 'main',
-    commit: 'a3f8c21',
+    commit: '8c91e4a',
     language: 'Python',
-    categories: ['python_logic'],
+    categories: ['python_logic', 'data_sql', 'ml_pipeline'],
   },
   {
     id: 'buggy_sql_pipeline',
@@ -44,7 +45,7 @@ export const TARGET_REPOS: TargetRepo[] = [
 ]
 
 export const ANALYSIS_MODES: { id: AnalysisMode; label: string }[] = [
-  { id: 'full', label: 'Full analysis' },
+  { id: 'full', label: 'Evidence required' },
   { id: 'discover_only', label: 'Discover only' },
   { id: 'verify_existing', label: 'Verify existing findings' },
 ]
@@ -68,6 +69,7 @@ export const INITIAL_WORKFLOW: WorkflowStage[] = [
     delayMs: 800,
     status: 'pending',
     durationMs: null,
+    progressLabel: null,
   },
   {
     id: 'discover',
@@ -76,6 +78,7 @@ export const INITIAL_WORKFLOW: WorkflowStage[] = [
     delayMs: 1400,
     status: 'pending',
     durationMs: null,
+    progressLabel: null,
   },
   {
     id: 'reproduce',
@@ -84,6 +87,7 @@ export const INITIAL_WORKFLOW: WorkflowStage[] = [
     delayMs: 1600,
     status: 'pending',
     durationMs: null,
+    progressLabel: null,
   },
   {
     id: 'patch',
@@ -92,6 +96,7 @@ export const INITIAL_WORKFLOW: WorkflowStage[] = [
     delayMs: 1300,
     status: 'pending',
     durationMs: null,
+    progressLabel: null,
   },
   {
     id: 'verify',
@@ -100,12 +105,21 @@ export const INITIAL_WORKFLOW: WorkflowStage[] = [
     delayMs: 1500,
     status: 'pending',
     durationMs: null,
+    progressLabel: null,
   },
 ]
 
+export const STAGE_PROGRESS: Record<string, string> = {
+  analyze: 'Indexed 31 files · discovered 8 candidate functions',
+  discover: 'Generated 4 candidate findings with reproduction tests',
+  reproduce: 'Running reproduction test 3 of 7',
+  patch: 'Generating minimal patch for BF-1042',
+  verify: 'Rerunning failing test and regression suite',
+}
+
 export const MOCK_FINDINGS: Finding[] = [
   {
-    id: 'find_7c2a91',
+    id: 'BF-1042',
     category: 'python_logic',
     file: 'src/analytics/rolling.py',
     function_or_query: 'rolling_mean',
@@ -116,7 +130,7 @@ export const MOCK_FINDINGS: Finding[] = [
     expected_behavior:
       'Return a valid rolling result while treating None as missing.',
     observed_behavior:
-      'TypeError: unsupported operand type(s) for +: float and NoneType',
+      "TypeError:\nunsupported operand type(s) for +: 'float' and 'NoneType'",
     stack_trace: `Traceback (most recent call last):
   File "tests/generated/test_rolling_mean_none.py", line 8, in test_rolling_mean_handles_trailing_none
     result = rolling_mean(series, window=3)
@@ -141,12 +155,15 @@ def test_rolling_mean_handles_trailing_none():
     assert result[2] == pytest.approx(2.0)
     assert result[3] == pytest.approx(2.5)
 `,
+    test_name: 'test_rolling_mean_handles_trailing_none',
+    test_path: 'tests/generated/test_rolling_mean_none.py',
     severity: 'high',
     confidence: 0.91,
-    verification_state: 'pending',
+    ranking_score: 0.91,
+    verification_state: 'pending_verification',
   },
   {
-    id: 'find_3b91e2',
+    id: 'BF-1043',
     category: 'python_logic',
     file: 'src/analytics/cohorts.py',
     function_or_query: 'active_users',
@@ -165,12 +182,15 @@ def test_rolling_mean_handles_trailing_none():
     generated_test: `def test_active_users_no_double_count():
     assert active_users(ranges, events) == 3
 `,
+    test_name: 'test_active_users_no_double_count',
+    test_path: 'tests/generated/test_active_users.py',
     severity: 'medium',
     confidence: 0.74,
-    verification_state: 'pending',
+    ranking_score: 0.74,
+    verification_state: 'pending_verification',
   },
   {
-    id: 'find_91aa04',
+    id: 'BF-1044',
     category: 'data_sql',
     file: 'sql/revenue_by_cohort.sql',
     function_or_query: 'revenue_by_cohort',
@@ -187,12 +207,15 @@ def test_rolling_mean_handles_trailing_none():
       'Compare to ground-truth sum',
     ],
     generated_test: `-- reproduction query compares grain-safe sum vs joined sum`,
+    test_name: 'test_revenue_by_cohort_grain',
+    test_path: 'tests/generated/test_revenue_by_cohort.py',
     severity: 'high',
     confidence: 0.62,
-    verification_state: 'pending',
+    ranking_score: 0.62,
+    verification_state: 'pending_verification',
   },
   {
-    id: 'find_55d0c8',
+    id: 'BF-1045',
     category: 'python_logic',
     file: 'src/analytics/normalize.py',
     function_or_query: 'pct_change',
@@ -206,28 +229,26 @@ def test_rolling_mean_handles_trailing_none():
     generated_test: `def test_pct_change_zero_previous():
     assert pct_change(0.0, 4.0) is None
 `,
+    test_name: 'test_pct_change_zero_previous',
+    test_path: 'tests/generated/test_pct_change.py',
     severity: 'low',
     confidence: 0.58,
-    verification_state: 'pending',
+    ranking_score: 0.58,
+    verification_state: 'pending_verification',
   },
 ]
 
 export const MOCK_REFEREE: RefereeResult = {
-  finding_id: 'find_7c2a91',
+  finding_id: 'BF-1042',
   reproduced: true,
   evidence:
     'pytest exit code 1 — TypeError matches observed behavior at rolling.py:48.',
-  execution_output: `============================= test session starts ==============================
-platform linux -- Python 3.12.4, pytest-8.3.2
-collected 1 item
+  execution_output: `pytest tests/generated/test_rolling_mean_none.py
 
-tests/generated/test_rolling_mean_none.py::test_rolling_mean_handles_trailing_none FAILED [100%]
+FAILED
 
-=================================== FAILURES ===================================
-E   TypeError: unsupported operand type(s) for +: 'float' and 'NoneType'
-=========================== short test summary info ============================
-FAILED tests/generated/test_rolling_mean_none.py::test_rolling_mean_handles_trailing_none
-============================== 1 failed in 0.08s ===============================`,
+TypeError: unsupported operand type(s) for +: 'float' and 'NoneType'
+  File "src/analytics/rolling.py", line 48, in rolling_mean`,
   expected_behavior: MOCK_FINDINGS[0].expected_behavior,
   observed_behavior: MOCK_FINDINGS[0].observed_behavior,
   verdict: 'verified_bug',
@@ -235,7 +256,8 @@ FAILED tests/generated/test_rolling_mean_none.py::test_rolling_mean_handles_trai
 }
 
 export const MOCK_PATCH: PatchAttempt = {
-  finding_id: 'find_7c2a91',
+  id: 'patch_02',
+  finding_id: 'BF-1042',
   files_modified: ['src/analytics/rolling.py'],
   patch: `--- a/src/analytics/rolling.py
 +++ b/src/analytics/rolling.py
@@ -257,7 +279,7 @@ export const MOCK_PATCH: PatchAttempt = {
 +        results.append(sum(window_vals) / len(window_vals))
      return results`,
   explanation:
-    'Filter None values before aggregation while preserving strict window length for incomplete windows.',
+    'Filter None values before aggregation while preserving strict window-length behavior.',
   tests_added_or_modified: [
     'tests/generated/test_rolling_mean_none.py',
   ],
@@ -266,11 +288,15 @@ export const MOCK_PATCH: PatchAttempt = {
 }
 
 export const MOCK_PATCH_RESULT: PatchResult = {
-  finding_id: 'find_7c2a91',
+  finding_id: 'BF-1042',
+  patch_id: 'patch_02',
+  reproduced: true,
+  generated_test: true,
+  patch_applied: true,
   attack_test_passed: true,
   regression_tests_passed: true,
-  regression_passed: 32,
-  regression_total: 32,
+  regression_passed: 38,
+  regression_total: 38,
   static_checks_passed: true,
   new_failures: [],
   patch_accepted: true,
@@ -285,23 +311,52 @@ export const MOCK_SUMMARY: RunSummary = {
   patches_accepted: 1,
   regressions_introduced: 0,
   tests_executed: 38,
-  duration_label: '2m 14s',
 }
 
 export const MOCK_METRICS: EvalMetrics = {
-  detection_precision: 0.5,
-  detection_recall: 0.67,
+  detection_precision: 0.86,
+  detection_recall: 0.81,
   reproduction_rate: 0.5,
   patch_success_rate: 0.5,
   regression_rate: 0.0,
   mean_repair_attempts: 1.0,
+  mean_verification_calls: 2.4,
+  average_cost_per_finding: 0.12,
   ranking_enabled: true,
-  ranking_model: 'PyTorch classifier',
-  ranking_precision: 0.78,
-  ranking_recall: 0.71,
-  ranking_f1: 0.74,
-  ranking_roc_auc: 0.86,
+  ranking_model: 'finding-ranker-v1',
+  ranking_framework: 'PyTorch',
+  ranking_precision: 0.86,
+  ranking_recall: 0.81,
+  ranking_f1: 0.83,
+  ranking_roc_auc: 0.9,
 }
+
+export const MOCK_COMPARISONS: PipelineComparison[] = [
+  {
+    name: 'Single LLM',
+    reproduction_rate: 0.22,
+    patch_success_rate: 0.18,
+    false_positive_rate: 0.41,
+  },
+  {
+    name: 'Red + Blue',
+    reproduction_rate: 0.35,
+    patch_success_rate: 0.29,
+    false_positive_rate: 0.28,
+  },
+  {
+    name: 'Red + Referee + Blue',
+    reproduction_rate: 0.48,
+    patch_success_rate: 0.41,
+    false_positive_rate: 0.14,
+  },
+  {
+    name: 'Full BlackForge pipeline',
+    reproduction_rate: 0.5,
+    patch_success_rate: 0.5,
+    false_positive_rate: 0.08,
+  },
+]
 
 export const MOCK_ACTIVITY: SystemActivity = {
   discovery_model: 'gpt-x',
@@ -314,8 +369,8 @@ export const TERMINAL_SEQUENCE: { afterStage: string; lines: string[] }[] = [
   {
     afterStage: 'analyze',
     lines: [
-      'blackforge analyze examples/buggy_python@a3f8c21',
-      'indexed 12 files, 6 tests',
+      'blackforge analyze examples/buggy_python@8c91e4a',
+      'indexed 31 files',
     ],
   },
   {
@@ -328,24 +383,25 @@ export const TERMINAL_SEQUENCE: { afterStage: string; lines: string[] }[] = [
   {
     afterStage: 'reproduce',
     lines: [
-      'docker run --rm blackforge-exec pytest -q tests/generated/test_rolling_mean_none.py',
-      'FAILED before patch — TypeError at rolling.py:48',
+      'pytest tests/generated/test_rolling_mean_none.py',
+      'FAILED',
       'verified: 2 · not reproduced: 2',
     ],
   },
   {
     afterStage: 'patch',
     lines: [
-      'patch attempt find_7c2a91 → src/analytics/rolling.py (+4 −2)',
+      'patch_02 → src/analytics/rolling.py (+4 −2)',
     ],
   },
   {
     afterStage: 'verify',
     lines: [
       'pytest tests/generated/test_rolling_mean_none.py',
-      'PASSED after patch',
-      'pytest  · 32 passed',
-      'patch accepted · find_7c2a91',
+      'PASSED',
+      'pytest',
+      '38 passed',
+      'patch_02 accepted · BF-1042',
     ],
   },
 ]

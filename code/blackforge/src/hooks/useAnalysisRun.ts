@@ -2,17 +2,21 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   INITIAL_WORKFLOW,
   MOCK_ACTIVITY,
+  MOCK_COMPARISONS,
   MOCK_FINDINGS,
   MOCK_METRICS,
   MOCK_PATCH,
   MOCK_PATCH_RESULT,
   MOCK_REFEREE,
   MOCK_SUMMARY,
+  STAGE_PROGRESS,
   TARGET_REPOS,
   TERMINAL_SEQUENCE,
 } from '../data/mock'
+import { formatElapsed } from '../lib/format'
 import type {
   AnalysisState,
+  AppView,
   BugCategory,
   Finding,
   RevealState,
@@ -35,6 +39,7 @@ function cloneWorkflow(): WorkflowStage[] {
     ...stage,
     status: 'pending',
     durationMs: null,
+    progressLabel: null,
   }))
 }
 
@@ -57,7 +62,7 @@ function defaultConfig(repoId = TARGET_REPOS[0].id): RunConfig {
 function finalizeFindings(): Finding[] {
   return MOCK_FINDINGS.map((finding, index) => {
     if (index === 0) {
-      return { ...finding, verification_state: 'patched' }
+      return { ...finding, verification_state: 'patch_accepted' }
     }
     if (index === 1) {
       return { ...finding, verification_state: 'verified' }
@@ -69,9 +74,12 @@ function finalizeFindings(): Finding[] {
 function createInitialState(repoId = TARGET_REPOS[0].id): AnalysisState {
   return {
     status: 'idle',
+    view: 'run',
     runId: null,
     config: defaultConfig(repoId),
     workflow: cloneWorkflow(),
+    selectedStageId: null,
+    progressMessage: null,
     reveal: { ...EMPTY_REVEAL },
     findings: [],
     selectedFindingId: null,
@@ -80,7 +88,9 @@ function createInitialState(repoId = TARGET_REPOS[0].id): AnalysisState {
     patchResult: null,
     summary: null,
     metrics: null,
+    comparisons: MOCK_COMPARISONS,
     activity: null,
+    error: null,
     terminalLines: [],
     terminalOpen: false,
     startedAt: null,
@@ -128,7 +138,7 @@ export function useAnalysisRun() {
     if (state.status !== 'running') return
     const id = window.setInterval(() => {
       setState((prev) => ({ ...prev, now: Date.now() }))
-    }, 250)
+    }, 200)
     return () => window.clearInterval(id)
   }, [state.status])
 
@@ -147,6 +157,7 @@ export function useAnalysisRun() {
         }
         return {
           ...createInitialState(nextConfig.repoId),
+          view: prev.view,
           config: nextConfig,
         }
       })
@@ -178,14 +189,29 @@ export function useAnalysisRun() {
     setState((prev) => ({ ...prev, selectedFindingId: findingId }))
   }, [])
 
+  const selectStage = useCallback((stageId: WorkflowStageId) => {
+    setState((prev) => ({
+      ...prev,
+      selectedStageId: prev.selectedStageId === stageId ? null : stageId,
+    }))
+  }, [])
+
   const setTerminalOpen = useCallback((open: boolean) => {
     setState((prev) => ({ ...prev, terminalOpen: open }))
+  }, [])
+
+  const setView = useCallback((view: AppView) => {
+    setState((prev) => ({ ...prev, view }))
   }, [])
 
   const reset = useCallback(() => {
     clearTimers()
     runTokenRef.current += 1
-    setState((prev) => createInitialState(prev.config.repoId))
+    setState((prev) => ({
+      ...createInitialState(prev.config.repoId),
+      view: prev.view,
+      config: prev.config,
+    }))
   }, [clearTimers])
 
   const startRun = useCallback(() => {
@@ -196,14 +222,17 @@ export function useAnalysisRun() {
 
     setState((prev) => ({
       ...createInitialState(prev.config.repoId),
+      view: 'run',
       config: prev.config,
       status: 'running',
       runId,
       workflow,
+      selectedStageId: 'analyze',
+      progressMessage: 'Analyzing repository',
       startedAt: Date.now(),
       now: Date.now(),
       terminalOpen: false,
-      terminalLines: ['blackforge analyze --evidence-required'],
+      terminalLines: [],
       activity: {
         ...MOCK_ACTIVITY,
         analysis_mode: prev.config.mode,
@@ -220,7 +249,6 @@ export function useAnalysisRun() {
         patches_accepted: 0,
         regressions_introduced: 0,
         tests_executed: 0,
-        duration_label: '0s',
       },
       reveal: { ...EMPTY_REVEAL, summary: true },
     }))
@@ -233,8 +261,16 @@ export function useAnalysisRun() {
         if (runTokenRef.current !== token) return
         setState((prev) => ({
           ...prev,
+          selectedStageId: stage.id,
+          progressMessage: STAGE_PROGRESS[stage.id] ?? stage.detail,
           workflow: prev.workflow.map((item, i) => {
-            if (i === index) return { ...item, status: 'active' }
+            if (i === index) {
+              return {
+                ...item,
+                status: 'active',
+                progressLabel: STAGE_PROGRESS[stage.id] ?? item.detail,
+              }
+            }
             if (i < index) return { ...item, status: 'done' }
             return item
           }),
@@ -252,10 +288,16 @@ export function useAnalysisRun() {
           const reveal = applyReveal(stage.id, prev.reveal)
           const nextWorkflow = prev.workflow.map((item, i) =>
             i === index
-              ? { ...item, status: 'done' as const, durationMs: stage.delayMs }
+              ? {
+                  ...item,
+                  status: 'done' as const,
+                  durationMs: stage.delayMs,
+                  progressLabel: STAGE_PROGRESS[stage.id] ?? item.detail,
+                }
               : item,
           )
           const isLast = index === workflow.length - 1
+          const now = Date.now()
 
           let findings = prev.findings
           let selectedFindingId = prev.selectedFindingId
@@ -268,20 +310,17 @@ export function useAnalysisRun() {
           if (stage.id === 'discover') {
             findings = MOCK_FINDINGS.map((finding) => ({
               ...finding,
-              verification_state: 'pending' as const,
+              verification_state: 'pending_verification' as const,
             }))
             selectedFindingId = findings[0]?.id ?? null
             summary = {
-              findings: 4,
+              findings: findings.length,
               verified: 0,
               rejected: 0,
               patches_attempted: 0,
               patches_accepted: 0,
               regressions_introduced: 0,
-              tests_executed: 4,
-              duration_label: formatDuration(
-                Date.now() - (prev.startedAt ?? Date.now()),
-              ),
+              tests_executed: findings.length,
             }
           }
 
@@ -289,7 +328,9 @@ export function useAnalysisRun() {
             findings = MOCK_FINDINGS.map((finding, i) => ({
               ...finding,
               verification_state:
-                i < 2 ? ('verified' as const) : ('not_reproduced' as const),
+                i < 2
+                  ? ('verified' as const)
+                  : ('not_reproduced' as const),
             }))
             referee = MOCK_REFEREE
             summary = {
@@ -300,13 +341,15 @@ export function useAnalysisRun() {
               patches_accepted: 0,
               regressions_introduced: 0,
               tests_executed: 18,
-              duration_label: formatDuration(
-                Date.now() - (prev.startedAt ?? Date.now()),
-              ),
             }
           }
 
           if (stage.id === 'patch') {
+            findings = prev.findings.map((finding) =>
+              finding.id === 'BF-1042'
+                ? { ...finding, verification_state: 'verified' as const }
+                : finding,
+            )
             patch = MOCK_PATCH
             summary = {
               findings: 4,
@@ -316,9 +359,6 @@ export function useAnalysisRun() {
               patches_accepted: 0,
               regressions_introduced: 0,
               tests_executed: 22,
-              duration_label: formatDuration(
-                Date.now() - (prev.startedAt ?? Date.now()),
-              ),
             }
           }
 
@@ -326,12 +366,7 @@ export function useAnalysisRun() {
             findings = finalizeFindings()
             patchResult = MOCK_PATCH_RESULT
             metrics = MOCK_METRICS
-            summary = {
-              ...MOCK_SUMMARY,
-              duration_label: formatDuration(
-                Date.now() - (prev.startedAt ?? Date.now()),
-              ),
-            }
+            summary = { ...MOCK_SUMMARY }
           }
 
           return {
@@ -346,9 +381,10 @@ export function useAnalysisRun() {
             patchResult,
             summary,
             metrics,
+            progressMessage: isLast ? null : prev.progressMessage,
             terminalLines: [...prev.terminalLines, ...terminalExtra],
-            completedAt: isLast ? Date.now() : prev.completedAt,
-            now: Date.now(),
+            completedAt: isLast ? now : prev.completedAt,
+            now,
           }
         })
       }, elapsed)
@@ -364,24 +400,29 @@ export function useAnalysisRun() {
     state.findings.find((finding) => finding.id === state.selectedFindingId) ??
     null
 
+  const selectedStage =
+    state.workflow.find((stage) => stage.id === state.selectedStageId) ?? null
+
+  const durationLabel = formatElapsed(
+    state.startedAt,
+    state.completedAt,
+    state.now,
+  )
+
   return {
     state,
     repos: TARGET_REPOS,
     selectedRepo,
     selectedFinding,
+    selectedStage,
+    durationLabel,
     updateConfig,
     toggleCategory,
     selectFinding,
+    selectStage,
     setTerminalOpen,
+    setView,
     startRun,
     reset,
   }
-}
-
-function formatDuration(ms: number): string {
-  const totalSeconds = Math.max(0, Math.round(ms / 1000))
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  if (minutes === 0) return `${seconds}s`
-  return `${minutes}m ${seconds.toString().padStart(2, '0')}s`
 }

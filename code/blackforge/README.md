@@ -4,14 +4,18 @@ Engineering console for **BlackForge AI**: an autonomous debugging and verificat
 
 ## What it shows
 
-- Run configuration (repository, branch, commit, mode, categories, environment)
-- Live run summary and workflow stages (Analyze → Discover → Reproduce → Patch → Verify)
-- Findings list with severity, location, and verification state
-- Evidence (reproduction steps, generated test, execution log, stack trace)
-- Patch diff and verification results
-- Collapsible execution log, system diagnostics, and evaluation metrics
+- Compact run configuration and **Run Analysis**
+- Run summary (executable outcomes only)
+- Workflow stages: Analyze → Discover → Reproduce → Patch → Verify
+- Findings list with severity, IDs, and verification states
+- Finding detail with expected/observed evidence and verification checklist
+- Evidence tabs (reproduction, generated test, log, stack, patch diff)
+- Patch diff / reasoning / verification, plus before/after results
+- Collapsible execution log and a secondary Evaluation view
 
 This is a Phase 1 frontend demo with realistic mock data and a timed simulated analysis run. No auth, database, or backend.
+
+Core philosophy: AI findings are not trusted until backed by executable evidence.
 
 ## Stack
 

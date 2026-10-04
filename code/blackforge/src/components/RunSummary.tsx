@@ -3,14 +3,21 @@ import type { RunSummary as Summary } from '../types'
 interface RunSummaryProps {
   summary: Summary | null
   visible: boolean
+  durationLabel: string
+  testsExecutedHint?: number
 }
 
-export function RunSummary({ summary, visible }: RunSummaryProps) {
+export function RunSummary({
+  summary,
+  visible,
+  durationLabel,
+}: RunSummaryProps) {
   if (!visible || !summary) {
     return (
       <section className="surface">
         <div className="surface-header">
           <h2 className="section-label">Run summary</h2>
+          <span className="meta">Executable outcomes only</span>
         </div>
         <div className="empty">Run analysis to populate results.</div>
       </section>
@@ -25,7 +32,7 @@ export function RunSummary({ summary, visible }: RunSummaryProps) {
     { label: 'Patches accepted', value: summary.patches_accepted },
     { label: 'Regressions introduced', value: summary.regressions_introduced },
     { label: 'Tests executed', value: summary.tests_executed },
-    { label: 'Duration', value: summary.duration_label },
+    { label: 'Duration', value: durationLabel },
   ]
 
   return (
@@ -34,7 +41,7 @@ export function RunSummary({ summary, visible }: RunSummaryProps) {
         <h2 className="section-label">Run summary</h2>
         <span className="meta">Executable outcomes only</span>
       </div>
-      <div className="stat-grid border-0">
+      <div className="stat-grid">
         {cells.map((cell) => (
           <div key={cell.label} className="stat-cell">
             <div className="label">{cell.label}</div>

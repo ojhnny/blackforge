@@ -1,58 +1,95 @@
-# BlackForge AI — Analysis Console
+# BlackForge AI
 
-Engineering console for **BlackForge AI**: an autonomous debugging and verification system that discovers bugs, reproduces them with executable evidence, generates patches, reruns regressions, and accepts or rejects the result.
+**Break it. Fix it. Prove it.**
 
-## What it shows
+BlackForge AI is meant to be an autonomous reliability system for data and ML workflows — not another LLM chat wrapper.
 
-- Compact run configuration and **Run Analysis**
-- Run summary (executable outcomes only)
-- Workflow stages: Analyze → Discover → Reproduce → Patch → Verify
-- Findings list with severity, IDs, and verification states
-- Finding detail with expected/observed evidence and verification checklist
-- Evidence tabs (reproduction, generated test, log, stack, patch diff)
-- Patch diff / reasoning / verification, plus before/after results
-- Collapsible execution log and a secondary Evaluation view
+The idea is simple: find likely bugs, reproduce them with executable evidence, generate a minimal patch, then accept or reject that patch only after the original failure and the regression suite both pass.
 
-This is a Phase 1 frontend demo with realistic mock data and a timed simulated analysis run. No auth, database, or backend.
+> AI findings are not trusted until they are backed by executable evidence.
 
-Core philosophy: AI findings are not trusted until backed by executable evidence.
+## Demo
 
-## Stack
+Early analysis-console walkthrough (UI prototype — work in progress):
 
-- React 19 + TypeScript
-- Vite
-- Tailwind CSS v4
-- lucide-react
+![BlackForge analysis console](docs/demo/analysis-console.png)
 
-## Run locally
+<video src="docs/demo/analysis-console.mp4" controls width="100%"></video>
 
-```bash
-cd code/blackforge
-npm install
-npm run dev
-```
+Demo recording: [`docs/demo/analysis-console.mp4`](docs/demo/analysis-console.mp4)
 
-Dev server: **http://127.0.0.1:4827**
+## What this project is supposed to be
 
-## Scripts
+BlackForge is aimed at silent failures in analytics and ML systems — wrong joins, bad null handling, train/test leakage, broken metrics — the kind of bugs that do not always crash a program but still corrupt decisions.
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Start Vite dev server |
-| `npm run build` | Typecheck + production build |
-| `npm run preview` | Preview production build |
-| `npm run lint` | Lint with oxlint |
+The intended loop:
+
+1. **Analyze** a target repository
+2. **Discover** a concrete failure case (with a real failing test)
+3. **Reproduce** that failure in an isolated environment
+4. **Patch** with the smallest reasonable fix
+5. **Verify** by rerunning the failing case plus regressions
+
+Only then should a repair count as accepted.
+
+Internally that may be implemented with specialized agents (discovery, patching, refereeing). Externally it should feel like a serious engineering tool: findings, evidence, diffs, and verification results — not agent role-play.
+
+## Current status
+
+This repository is **early and incomplete**.
+
+What exists so far:
+
+- A production-styled **analysis console** prototype (`frontend/`) that simulates the full Analyze → Discover → Reproduce → Patch → Verify workflow with mock data
+- A small **deterministic core** (`src/blackforge`) with schemas, pytest/Docker runners, SQLite storage, a patch utility, and a Referee path that can reproduce a known failing test
+- One intentionally buggy example (`examples/buggy_python`)
+
+What is still ahead:
+
+- Connecting the UI to a real FastAPI backend
+- Actual discovery and patch-generation agents
+- Stricter Docker-based verification
+- Broader data/SQL/ML examples and evaluation metrics
+
+## Philosophy
+
+BlackForge should optimize for credibility over spectacle:
+
+- Evidence over opinion
+- Reproduction before repair
+- Regression safety before “patch accepted”
+- Measurable outcomes (reproduction rate, false positives, patch success)
 
 ## Layout
 
 ```text
-src/
-  components/   # Console sections
-  data/mock.ts  # Mock repos, findings, patch, metrics
-  hooks/        # Simulated analysis run
-  lib/          # Formatting helpers
-  types.ts
-  App.tsx
+frontend/            # Analysis console (React + Vite prototype)
+src/blackforge/      # Deterministic Python core (early)
+examples/            # Intentionally buggy target repos
+docs/demo/           # Demo recording + screenshot
+tests/               # Core tests
 ```
 
-Click **Run Analysis** to play the simulated workflow.
+## Quick start (as of now)
+
+Frontend prototype:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Deterministic reproduce path (from this folder):
+
+```bash
+uv sync --extra dev
+uv run blackforge reproduce \
+  --repo examples/buggy_python \
+  --test tests/test_rolling_mean_none.py \
+  --local
+```
+
+---
+
+Built as a portfolio-oriented AI engineering project for reliability in data and ML systems.

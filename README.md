@@ -14,11 +14,9 @@ Early analysis-console walkthrough (UI prototype — work in progress):
 
 ![BlackForge analysis console](docs/demo/analysis-console.png)
 
-https://github.com/user-attachments/assets/placeholder
-
 <video src="docs/demo/analysis-console.mp4" controls width="100%"></video>
 
-If the embedded player does not render in your viewer, open the file directly: [`docs/demo/analysis-console.mp4`](docs/demo/analysis-console.mp4).
+Demo recording: [`docs/demo/analysis-console.mp4`](docs/demo/analysis-console.mp4)
 
 ## What this project is supposed to be
 

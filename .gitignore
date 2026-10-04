@@ -1,0 +1,15 @@
+.blackforge/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+*.egg-info/
+.coverage
+htmlcov/
+code/blackforge/node_modules/
+code/blackforge/dist/
+.env
+*.db

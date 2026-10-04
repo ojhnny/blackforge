@@ -91,5 +91,3 @@ uv run blackforge reproduce \
 ```
 
 ---
-
-Built as a portfolio-oriented AI engineering project for reliability in data and ML systems.

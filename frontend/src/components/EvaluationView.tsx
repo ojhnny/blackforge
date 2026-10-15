@@ -1,23 +1,30 @@
-import { pct, pctDecimal } from '../lib/format'
-import type { EvalMetrics, PipelineComparison } from '../types'
+import { fixed1, pct, pctDecimal } from '../lib/format'
+import type { DataSource, EvalMetrics, PipelineComparison } from '../types'
 
 interface EvaluationViewProps {
   metrics: EvalMetrics | null
   comparisons: PipelineComparison[]
   hasCompletedRun: boolean
+  dataSource: DataSource
 }
 
 export function EvaluationView({
   metrics,
   comparisons,
   hasCompletedRun,
+  dataSource,
 }: EvaluationViewProps) {
+  const live = dataSource === 'live'
   return (
     <div className="space-y-3">
       <section className="surface">
         <div className="surface-header">
           <h2 className="section-label">Evaluation metrics</h2>
-          <span className="meta">Benchmark / experiment view</span>
+          <span className="meta">
+            {live
+              ? 'Computed from stored runs · — needs ground truth or LLM agents'
+              : 'Mock targets, not measured results'}
+          </span>
         </div>
         {!hasCompletedRun || !metrics ? (
           <div className="empty">
@@ -32,15 +39,19 @@ export function EvaluationView({
             <Metric label="Regression rate" value={pctDecimal(metrics.regression_rate)} />
             <Metric
               label="Mean repair attempts"
-              value={metrics.mean_repair_attempts.toFixed(1)}
+              value={fixed1(metrics.mean_repair_attempts)}
             />
             <Metric
               label="Mean verification calls"
-              value={metrics.mean_verification_calls.toFixed(1)}
+              value={fixed1(metrics.mean_verification_calls)}
             />
             <Metric
               label="Avg cost per finding"
-              value={`$${metrics.average_cost_per_finding.toFixed(2)}`}
+              value={
+                metrics.average_cost_per_finding == null
+                  ? '—'
+                  : `$${metrics.average_cost_per_finding.toFixed(2)}`
+              }
             />
           </div>
         )}
@@ -74,8 +85,15 @@ export function EvaluationView({
       <section className="surface">
         <div className="surface-header">
           <h2 className="section-label">Pipeline comparison</h2>
-          <span className="meta">Executable outcomes across configurations</span>
+          <span className="meta">
+            {live ? 'Ablation study not run yet' : 'Mock targets across configurations'}
+          </span>
         </div>
+        {comparisons.length === 0 ? (
+          <div className="empty">
+            Pipeline comparisons appear once the ablation benchmark exists.
+          </div>
+        ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-left text-[12px]">
             <thead className="border-b border-[var(--border-muted)] text-[var(--text-muted)]">
@@ -107,6 +125,7 @@ export function EvaluationView({
             </tbody>
           </table>
         </div>
+        )}
       </section>
     </div>
   )

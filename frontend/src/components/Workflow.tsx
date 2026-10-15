@@ -27,7 +27,8 @@ export function Workflow({
         {stages.map((stage) => {
           const active = stage.status === 'active'
           const done = stage.status === 'done'
-          const pending = stage.status === 'pending'
+          const failed = stage.status === 'failed'
+          const pending = stage.status === 'pending' || stage.status === 'skipped'
           const selectedRow = selectedStageId === stage.id
 
           return (
@@ -44,7 +45,9 @@ export function Workflow({
                     className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] ${
                       done
                         ? 'border-[rgba(63,185,80,0.35)] text-[var(--success)]'
-                        : active
+                        : failed
+                          ? 'border-[var(--danger)] text-[var(--danger)]'
+                          : active
                           ? 'border-[rgba(68,147,248,0.45)] text-[var(--accent)]'
                           : 'border-[var(--border)] text-[var(--text-muted)]'
                     }`}
@@ -69,7 +72,9 @@ export function Workflow({
                       ? 'running'
                       : done
                         ? formatStageDuration(stage.durationMs)
-                        : '—'}
+                        : failed || stage.status === 'skipped'
+                          ? stage.status
+                          : '—'}
                   </span>
                 </div>
               </button>

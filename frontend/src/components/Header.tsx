@@ -1,6 +1,6 @@
 import { Settings } from 'lucide-react'
 import { formatElapsed, statusLabel } from '../lib/format'
-import type { AppView, RunStatus } from '../types'
+import type { AppView, DataSource, RunStatus } from '../types'
 
 interface HeaderProps {
   projectName: string
@@ -10,6 +10,7 @@ interface HeaderProps {
   completedAt: number | null
   now: number
   view: AppView
+  dataSource: DataSource
   onViewChange: (view: AppView) => void
 }
 
@@ -21,6 +22,7 @@ export function Header({
   completedAt,
   now,
   view,
+  dataSource,
   onViewChange,
 }: HeaderProps) {
   return (
@@ -54,6 +56,16 @@ export function Header({
         </div>
 
         <div className="flex items-center gap-3">
+          <span
+            className={`badge ${dataSource === 'live' ? 'badge-success' : 'badge-warning'}`}
+            title={
+              dataSource === 'live'
+                ? 'Connected to the BlackForge API'
+                : 'API not reachable; showing simulated data'
+            }
+          >
+            {dataSource === 'live' ? 'Live API' : 'Mock data'}
+          </span>
           <div className="hidden items-center gap-3 text-[12px] text-[var(--text-muted)] md:flex">
             <span>
               Status:{' '}

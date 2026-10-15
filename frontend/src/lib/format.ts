@@ -67,6 +67,10 @@ export function pct(value: number): string {
   return `${(value * 100).toFixed(0)}%`
 }
 
-export function pctDecimal(value: number): string {
-  return value.toFixed(2)
+export function pctDecimal(value: number | null): string {
+  return value == null ? '—' : value.toFixed(2)
+}
+
+export function fixed1(value: number | null): string {
+  return value == null ? '—' : value.toFixed(1)
 }

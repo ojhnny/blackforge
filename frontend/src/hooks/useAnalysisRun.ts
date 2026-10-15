@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  ENVIRONMENTS,
   INITIAL_WORKFLOW,
   MOCK_ACTIVITY,
   MOCK_COMPARISONS,
@@ -13,17 +14,35 @@ import {
   TARGET_REPOS,
   TERMINAL_SEQUENCE,
 } from '../data/mock'
+import {
+  EVENT_TYPES,
+  api,
+  toFinding,
+  toMetrics,
+  toPatch,
+  toPatchResult,
+  toRunStatus,
+  toTargetRepo,
+  type ApiEvent,
+  type ApiFindingDetail,
+  type ApiHealth,
+  type ApiRunDetail,
+} from '../lib/api'
 import { formatElapsed } from '../lib/format'
 import type {
   AnalysisState,
   AppView,
   BugCategory,
+  DataSource,
   Finding,
   RevealState,
   RunConfig,
+  TargetRepo,
   WorkflowStage,
   WorkflowStageId,
 } from '../types'
+
+const HEALTH_TIMEOUT_MS = 1500
 
 const EMPTY_REVEAL: RevealState = {
   summary: false,
@@ -47,8 +66,11 @@ function makeRunId(): string {
   return `run_${Math.random().toString(16).slice(2, 8)}`
 }
 
-function defaultConfig(repoId = TARGET_REPOS[0].id): RunConfig {
-  const repo = TARGET_REPOS.find((item) => item.id === repoId) ?? TARGET_REPOS[0]
+function defaultConfig(
+  repoId: string,
+  repos: TargetRepo[] = TARGET_REPOS,
+): RunConfig {
+  const repo = repos.find((item) => item.id === repoId) ?? repos[0]
   return {
     repoId: repo.id,
     branch: repo.defaultBranch,
@@ -71,12 +93,17 @@ function finalizeFindings(): Finding[] {
   })
 }
 
-function createInitialState(repoId = TARGET_REPOS[0].id): AnalysisState {
+function createInitialState(
+  repoId = TARGET_REPOS[0].id,
+  repos: TargetRepo[] = TARGET_REPOS,
+  dataSource: DataSource = 'mock',
+): AnalysisState {
   return {
+    dataSource,
     status: 'idle',
     view: 'run',
     runId: null,
-    config: defaultConfig(repoId),
+    config: defaultConfig(repoId, repos),
     workflow: cloneWorkflow(),
     selectedStageId: null,
     progressMessage: null,
@@ -88,7 +115,7 @@ function createInitialState(repoId = TARGET_REPOS[0].id): AnalysisState {
     patchResult: null,
     summary: null,
     metrics: null,
-    comparisons: MOCK_COMPARISONS,
+    comparisons: dataSource === 'live' ? [] : MOCK_COMPARISONS,
     activity: null,
     error: null,
     terminalLines: [],
@@ -122,17 +149,131 @@ function applyReveal(id: WorkflowStageId, reveal: RevealState): RevealState {
   return next
 }
 
+function selectionFor(
+  details: ApiFindingDetail[],
+  findingId: string | null,
+): Pick<AnalysisState, 'referee' | 'patch' | 'patchResult'> {
+  const detail = details.find((item) => item.finding.id === findingId)
+  return {
+    referee: detail?.referee ?? null,
+    patch: detail?.patch ? toPatch(detail.patch) : null,
+    patchResult: detail?.patch_result
+      ? toPatchResult(detail.patch_result, detail.finding)
+      : null,
+  }
+}
+
+function applyRunDetail(prev: AnalysisState, detail: ApiRunDetail): AnalysisState {
+  const { run } = detail
+  const byId = new Map(run.stages.map((stage) => [stage.id, stage]))
+  const workflow = prev.workflow.map((stage) => {
+    const live = byId.get(stage.id)
+    if (!live) return stage
+    return {
+      ...stage,
+      status: live.status,
+      durationMs: live.duration_ms,
+      progressLabel: live.detail,
+    }
+  })
+  const isDone = (id: WorkflowStageId) => byId.get(id)?.status === 'done'
+  const active = run.stages.find((stage) => stage.status === 'active') ?? null
+  const status = toRunStatus(run.status)
+
+  const findings = detail.findings.map((item) => toFinding(item, run))
+  const selectedFindingId =
+    findings.find((finding) => finding.id === prev.selectedFindingId)?.id ??
+    findings.find((finding) => finding.verification_state !== 'not_reproduced')?.id ??
+    findings[0]?.id ??
+    null
+
+  const failedStage = run.stages.find((stage) => stage.status === 'failed')
+  return {
+    ...prev,
+    status,
+    runId: run.id,
+    workflow,
+    selectedStageId: active?.id ?? prev.selectedStageId,
+    progressMessage: status === 'running' ? (active?.detail ?? 'Starting run') : null,
+    reveal: {
+      summary: true,
+      findings: isDone('discover'),
+      evidence: isDone('reproduce'),
+      patch: isDone('patch'),
+      verification: isDone('verify'),
+      metrics: status === 'completed',
+    },
+    findings,
+    selectedFindingId,
+    ...selectionFor(detail.findings, selectedFindingId),
+    summary: detail.summary,
+    activity: prev.activity
+      ? { ...prev.activity, patch_attempts: detail.summary.patches_attempted }
+      : prev.activity,
+    error:
+      status === 'failed'
+        ? {
+            message: 'Run failed',
+            detail: run.error ?? 'The backend reported a failure.',
+            stage: failedStage?.id ?? 'analyze',
+          }
+        : null,
+    startedAt: Date.parse(run.created_at),
+    completedAt: run.completed_at ? Date.parse(run.completed_at) : null,
+    now: Date.now(),
+  }
+}
+
 export function useAnalysisRun() {
   const [state, setState] = useState<AnalysisState>(() => createInitialState())
+  const [repos, setRepos] = useState<TargetRepo[]>(TARGET_REPOS)
   const timersRef = useRef<number[]>([])
   const runTokenRef = useRef(0)
+  const streamRef = useRef<EventSource | null>(null)
+  const healthRef = useRef<ApiHealth | null>(null)
+  const liveDetailsRef = useRef<ApiFindingDetail[]>([])
 
   const clearTimers = useCallback(() => {
     timersRef.current.forEach((id) => window.clearTimeout(id))
     timersRef.current = []
+    streamRef.current?.close()
+    streamRef.current = null
   }, [])
 
   useEffect(() => () => clearTimers(), [clearTimers])
+
+  // Use the live backend when it answers; otherwise keep the mock simulation.
+  useEffect(() => {
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS)
+    let cancelled = false
+    ;(async () => {
+      try {
+        healthRef.current = await api.health(controller.signal)
+        const liveRepos = (await api.repos()).map(toTargetRepo)
+        if (cancelled || liveRepos.length === 0) return
+        setRepos(liveRepos)
+        const docker = healthRef.current.docker_available
+        setState((prev) => {
+          if (prev.status === 'running') return prev
+          const next = createInitialState(liveRepos[0].id, liveRepos, 'live')
+          return {
+            ...next,
+            view: prev.view,
+            config: docker ? next.config : { ...next.config, environment: 'local_python' },
+          }
+        })
+      } catch {
+        // Backend not running: stay on mock data.
+      } finally {
+        window.clearTimeout(timeout)
+      }
+    })()
+    return () => {
+      cancelled = true
+      controller.abort()
+    }
+  }, [])
 
   useEffect(() => {
     if (state.status !== 'running') return
@@ -149,20 +290,19 @@ export function useAnalysisRun() {
         const nextConfig = { ...prev.config, ...partial }
         if (partial.repoId) {
           const repo =
-            TARGET_REPOS.find((item) => item.id === partial.repoId) ??
-            TARGET_REPOS[0]
+            repos.find((item) => item.id === partial.repoId) ?? repos[0]
           nextConfig.branch = repo.defaultBranch
           nextConfig.commit = repo.commit
           nextConfig.categories = [...repo.categories]
         }
         return {
-          ...createInitialState(nextConfig.repoId),
+          ...createInitialState(nextConfig.repoId, repos, prev.dataSource),
           view: prev.view,
           config: nextConfig,
         }
       })
     },
-    [state.status],
+    [state.status, repos],
   )
 
   const toggleCategory = useCallback(
@@ -186,7 +326,15 @@ export function useAnalysisRun() {
   )
 
   const selectFinding = useCallback((findingId: string) => {
-    setState((prev) => ({ ...prev, selectedFindingId: findingId }))
+    setState((prev) =>
+      prev.dataSource === 'live' && prev.runId
+        ? {
+            ...prev,
+            selectedFindingId: findingId,
+            ...selectionFor(liveDetailsRef.current, findingId),
+          }
+        : { ...prev, selectedFindingId: findingId },
+    )
   }, [])
 
   const selectStage = useCallback((stageId: WorkflowStageId) => {
@@ -207,21 +355,137 @@ export function useAnalysisRun() {
   const reset = useCallback(() => {
     clearTimers()
     runTokenRef.current += 1
+    liveDetailsRef.current = []
+    if (state.dataSource === 'live' && state.status === 'running' && state.runId) {
+      api.cancelRun(state.runId).catch(() => undefined)
+    }
     setState((prev) => ({
-      ...createInitialState(prev.config.repoId),
+      ...createInitialState(prev.config.repoId, repos, prev.dataSource),
       view: prev.view,
       config: prev.config,
     }))
-  }, [clearTimers])
+  }, [clearTimers, repos, state.dataSource, state.status, state.runId])
 
-  const startRun = useCallback(() => {
+  const startLiveRun = useCallback(async () => {
+    clearTimers()
+    const token = ++runTokenRef.current
+    liveDetailsRef.current = []
+    const health = healthRef.current
+    setState((prev) => ({
+      ...createInitialState(prev.config.repoId, repos, 'live'),
+      view: 'run',
+      config: prev.config,
+      status: 'running',
+      progressMessage: 'Starting run',
+      startedAt: Date.now(),
+      now: Date.now(),
+      reveal: { ...EMPTY_REVEAL, summary: true },
+      activity: {
+        discovery_model: 'Seeded manifest (discovery agent planned)',
+        verification_environment:
+          prev.config.environment !== 'local_python' && health?.docker_available
+            ? 'Docker'
+            : 'Local pytest',
+        patch_attempts: 0,
+        analysis_mode: prev.config.mode,
+      },
+    }))
+
+    let run
+    try {
+      run = await api.startRun({
+        repo_id: state.config.repoId,
+        mode: state.config.mode,
+        categories: state.config.categories,
+        prefer_docker: state.config.environment !== 'local_python',
+      })
+    } catch (error) {
+      if (runTokenRef.current !== token) return
+      setState((prev) => ({
+        ...prev,
+        status: 'failed',
+        progressMessage: null,
+        completedAt: Date.now(),
+        error: {
+          message: 'Could not start the run',
+          detail: error instanceof Error ? error.message : String(error),
+          stage: 'analyze',
+        },
+      }))
+      return
+    }
+    if (runTokenRef.current !== token) return
+    const runId = run.id
+    setState((prev) => ({ ...prev, runId }))
+
+    // Coalesce refreshes: events can arrive faster than GET /runs/{id} returns.
+    let inFlight = false
+    let again = false
+    let wantFinal = false
+    const refresh = async (final = false): Promise<void> => {
+      wantFinal ||= final
+      if (inFlight) {
+        again = true
+        return
+      }
+      inFlight = true
+      again = false
+      final = wantFinal
+      try {
+        const detail = await api.run(runId)
+        if (runTokenRef.current !== token) return
+        liveDetailsRef.current = detail.findings
+        setState((prev) => applyRunDetail(prev, detail))
+        if (final) {
+          const metrics = await api.metrics(detail.run.repo_id ?? undefined)
+          if (runTokenRef.current !== token) return
+          setState((prev) => ({ ...prev, metrics: toMetrics(metrics) }))
+        }
+      } catch {
+        // A later event or the final refresh will catch up.
+      } finally {
+        inFlight = false
+        if (again) void refresh()
+      }
+    }
+
+    const source = api.events(runId)
+    streamRef.current = source
+    for (const type of EVENT_TYPES) {
+      source.addEventListener(type, (message) => {
+        if (runTokenRef.current !== token) return
+        const event = JSON.parse((message as MessageEvent<string>).data) as ApiEvent
+        if (event.type === 'log') {
+          setState((prev) => ({
+            ...prev,
+            terminalLines: [...prev.terminalLines, event.message],
+          }))
+          return
+        }
+        if (
+          event.type === 'run_completed' ||
+          event.type === 'run_failed' ||
+          event.type === 'run_cancelled'
+        ) {
+          source.close()
+          streamRef.current = null
+          void refresh(true)
+          return
+        }
+        void refresh()
+      })
+    }
+  }, [clearTimers, repos, state.config])
+
+  const startMockRun = useCallback(() => {
     clearTimers()
     const token = ++runTokenRef.current
     const workflow = cloneWorkflow()
     const runId = makeRunId()
+    const repoList = TARGET_REPOS
 
     setState((prev) => ({
-      ...createInitialState(prev.config.repoId),
+      ...createInitialState(prev.config.repoId, repoList),
       view: 'run',
       config: prev.config,
       status: 'running',
@@ -237,9 +501,8 @@ export function useAnalysisRun() {
         ...MOCK_ACTIVITY,
         analysis_mode: prev.config.mode,
         verification_environment:
-          prev.config.environment === 'docker_python_312'
-            ? 'Docker / Python 3.12'
-            : 'Docker / Python 3.11',
+          ENVIRONMENTS.find((env) => env.id === prev.config.environment)?.label ??
+          'Docker / Python 3.12',
       },
       summary: {
         findings: 0,
@@ -392,9 +655,13 @@ export function useAnalysisRun() {
     })
   }, [clearTimers])
 
+  const startRun = useCallback(() => {
+    if (state.dataSource === 'live') void startLiveRun()
+    else startMockRun()
+  }, [state.dataSource, startLiveRun, startMockRun])
+
   const selectedRepo =
-    TARGET_REPOS.find((repo) => repo.id === state.config.repoId) ??
-    TARGET_REPOS[0]
+    repos.find((repo) => repo.id === state.config.repoId) ?? repos[0]
 
   const selectedFinding =
     state.findings.find((finding) => finding.id === state.selectedFindingId) ??
@@ -411,7 +678,7 @@ export function useAnalysisRun() {
 
   return {
     state,
-    repos: TARGET_REPOS,
+    repos,
     selectedRepo,
     selectedFinding,
     selectedStage,

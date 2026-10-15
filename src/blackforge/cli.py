@@ -64,6 +64,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print RefereeResult as JSON.",
     )
 
+    serve = sub.add_parser("serve", help="Start the HTTP API used by the console.")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument("--reload", action="store_true", help="Reload on code changes.")
+
     sub.add_parser("version", help="Print package version.")
     return parser
 
@@ -120,6 +125,19 @@ def cmd_reproduce(args: argparse.Namespace) -> int:
     return 0 if result.reproduced else 1
 
 
+def cmd_serve(args: argparse.Namespace) -> int:
+    import uvicorn
+
+    uvicorn.run(
+        "blackforge.api.app:create_app",
+        factory=True,
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+    )
+    return 0
+
+
 def cmd_version(_: argparse.Namespace) -> int:
     from blackforge import __version__
 
@@ -132,6 +150,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "reproduce":
         return cmd_reproduce(args)
+    if args.command == "serve":
+        return cmd_serve(args)
     if args.command == "version":
         return cmd_version(args)
     parser.error(f"unknown command {args.command}")

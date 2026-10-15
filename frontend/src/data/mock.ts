@@ -53,6 +53,7 @@ export const ANALYSIS_MODES: { id: AnalysisMode; label: string }[] = [
 export const ENVIRONMENTS: { id: ExecutionEnvironment; label: string }[] = [
   { id: 'docker_python_312', label: 'Docker · Python 3.12' },
   { id: 'docker_python_311', label: 'Docker · Python 3.11' },
+  { id: 'local_python', label: 'Local pytest' },
 ]
 
 export const CATEGORY_OPTIONS: { id: BugCategory; label: string }[] = [

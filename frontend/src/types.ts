@@ -16,7 +16,9 @@ export type WorkflowStageId =
   | 'patch'
   | 'verify'
 
-export type StageStatus = 'pending' | 'active' | 'done' | 'failed'
+export type StageStatus = 'pending' | 'active' | 'done' | 'skipped' | 'failed'
+
+export type DataSource = 'live' | 'mock'
 
 export type VerificationState =
   | 'pending_verification'
@@ -28,7 +30,10 @@ export type VerificationState =
 
 export type AnalysisMode = 'full' | 'discover_only' | 'verify_existing'
 
-export type ExecutionEnvironment = 'docker_python_312' | 'docker_python_311'
+export type ExecutionEnvironment =
+  | 'docker_python_312'
+  | 'docker_python_311'
+  | 'local_python'
 
 export type AppView = 'run' | 'evaluation'
 
@@ -111,15 +116,16 @@ export interface RunSummary {
   tests_executed: number
 }
 
+// Null means "not measurable yet" (for example, precision needs ground truth).
 export interface EvalMetrics {
-  detection_precision: number
-  detection_recall: number
-  reproduction_rate: number
-  patch_success_rate: number
-  regression_rate: number
-  mean_repair_attempts: number
-  mean_verification_calls: number
-  average_cost_per_finding: number
+  detection_precision: number | null
+  detection_recall: number | null
+  reproduction_rate: number | null
+  patch_success_rate: number | null
+  regression_rate: number | null
+  mean_repair_attempts: number | null
+  mean_verification_calls: number | null
+  average_cost_per_finding: number | null
   ranking_enabled: boolean
   ranking_model: string | null
   ranking_framework: string | null
@@ -178,6 +184,7 @@ export interface RunError {
 }
 
 export interface AnalysisState {
+  dataSource: DataSource
   status: RunStatus
   view: AppView
   runId: string | null

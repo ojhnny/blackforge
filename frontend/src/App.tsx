@@ -39,6 +39,7 @@ export default function App() {
         completedAt={state.completedAt}
         now={state.now}
         view={state.view}
+        dataSource={state.dataSource}
         onViewChange={setView}
       />
 
@@ -48,6 +49,7 @@ export default function App() {
             metrics={state.metrics}
             comparisons={state.comparisons}
             hasCompletedRun={state.status === 'completed'}
+            dataSource={state.dataSource}
           />
         ) : (
           <>

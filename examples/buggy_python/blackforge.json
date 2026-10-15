@@ -1,0 +1,53 @@
+{
+  "name": "buggy_python",
+  "language": "Python",
+  "default_branch": "main",
+  "categories": [
+    "python_logic"
+  ],
+  "description": "Seeded candidate findings for the demo pipeline. Until the discovery and patch agents exist, BlackForge reads candidates and reference patches from this file; the Referee and verifier still decide every verdict by running pytest.",
+  "findings": [
+    {
+      "key": "rolling-mean-none",
+      "category": "python_logic",
+      "file": "src/analytics/rolling.py",
+      "function_or_query": "rolling_mean",
+      "location": "line 23",
+      "description": "rolling_mean fails when a valid window contains None values.",
+      "triggering_input": "[1.0, 2.0, 3.0, None]; window=3",
+      "expected_behavior": "Return a valid rolling result while treating None as missing.",
+      "observed_behavior": "TypeError: unsupported operand type(s) for +: 'float' and 'NoneType'",
+      "reproduction_steps": [
+        "cd examples/buggy_python",
+        "pytest tests/test_rolling_mean_none.py"
+      ],
+      "test_path": "tests/test_rolling_mean_none.py",
+      "severity": "high",
+      "confidence": 0.9,
+      "reference_patch": {
+        "files_modified": [
+          "src/analytics/rolling.py"
+        ],
+        "explanation": "Skip None values inside each full window and return None when a window has no values, so missing data is treated as missing instead of crashing sum().",
+        "patch": "--- a/src/analytics/rolling.py\n+++ b/src/analytics/rolling.py\n@@ -19,9 +19,11 @@\n         if len(window_vals) < window:\n             results.append(None)\n             continue\n-        # Intentionally naive \u2014 blows up when None is present.\n-        total = sum(window_vals)  # type: ignore[arg-type]\n-        results.append(total / len(window_vals))\n+        present = [v for v in window_vals if v is not None]\n+        if not present:\n+            results.append(None)\n+            continue\n+        results.append(sum(present) / len(present))\n     return results\n \n \n"
+      }
+    },
+    {
+      "key": "rolling-sum-window-one",
+      "category": "python_logic",
+      "file": "src/analytics/rolling.py",
+      "function_or_query": "rolling_sum",
+      "location": "line 39",
+      "description": "Claimed: rolling_sum drops the first value when window=1.",
+      "triggering_input": "[4.0, 5.0, 6.0]; window=1",
+      "expected_behavior": "Return [4.0, 5.0, 6.0].",
+      "observed_behavior": "AssertionError: first element is None",
+      "reproduction_steps": [
+        "Call rolling_sum([4.0, 5.0, 6.0], window=1)"
+      ],
+      "generated_test": "from analytics.rolling import rolling_sum\n\n\ndef test_rolling_sum_window_one_keeps_first_value():\n    assert rolling_sum([4.0, 5.0, 6.0], window=1) == [4.0, 5.0, 6.0]\n",
+      "severity": "medium",
+      "confidence": 0.55
+    }
+  ]
+}

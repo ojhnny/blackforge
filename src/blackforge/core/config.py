@@ -13,6 +13,7 @@ class Settings(BaseModel):
         default_factory=lambda: Path(__file__).resolve().parents[3]
     )
     data_dir: Path | None = None
+    examples_dir: Path | None = None
     sqlite_path: Path | None = None
     docker_image: str = "python:3.12-slim"
     docker_enabled: bool = True
@@ -22,6 +23,10 @@ class Settings(BaseModel):
     def model_post_init(self, __context: object) -> None:
         if self.data_dir is None:
             self.data_dir = self.project_root / ".blackforge"
+        if self.examples_dir is None:
+            self.examples_dir = Path(
+                os.getenv("BLACKFORGE_EXAMPLES_DIR", self.project_root / "examples")
+            )
         if self.sqlite_path is None:
             self.sqlite_path = self.data_dir / "blackforge.db"
         env_prefer = os.getenv("BLACKFORGE_PREFER_DOCKER")

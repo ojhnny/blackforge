@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import json
 import sqlite3
-from datetime import datetime, timezone
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import TypeVar
+from uuid import uuid4
 
 from pydantic import BaseModel
 
@@ -16,6 +17,7 @@ from blackforge.core.schemas import (
     PatchAttempt,
     PatchResult,
     RefereeResult,
+    RunEvent,
     StoredRun,
 )
 
@@ -30,10 +32,18 @@ class Storage:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        # One short-lived connection per call: safe to use from the API's
+        # worker threads, and always closed (sqlite3's own context manager
+        # only commits).
+        conn = sqlite3.connect(self.db_path, timeout=10)
         conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _init_db(self) -> None:
         with self._connect() as conn:
@@ -68,6 +78,13 @@ class Storage:
                     payload TEXT NOT NULL,
                     created_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS run_events (
+                    run_id TEXT NOT NULL,
+                    seq INTEGER NOT NULL,
+                    payload TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY (run_id, seq)
+                );
                 """
             )
 
@@ -92,6 +109,39 @@ class Storage:
             ).fetchone()
         return self._load(StoredRun, row["payload"]) if row else None
 
+    def list_runs(self, limit: int = 50) -> list[StoredRun]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT payload FROM runs ORDER BY created_at DESC LIMIT ?", (limit,)
+            ).fetchall()
+        return [self._load(StoredRun, row["payload"]) for row in rows]
+
+    def append_event(self, event: RunEvent) -> RunEvent:
+        """Append an event with the next sequence number for its run."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT COALESCE(MAX(seq), 0) AS last FROM run_events WHERE run_id = ?",
+                (event.run_id,),
+            ).fetchone()
+            event = event.model_copy(update={"seq": row["last"] + 1})
+            conn.execute(
+                "INSERT INTO run_events (run_id, seq, payload, created_at) VALUES (?, ?, ?, ?)",
+                (event.run_id, event.seq, self._dump(event), event.created_at.isoformat()),
+            )
+        return event
+
+    def list_events(self, run_id: str, after_seq: int = 0) -> list[RunEvent]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT payload FROM run_events
+                WHERE run_id = ? AND seq > ?
+                ORDER BY seq
+                """,
+                (run_id, after_seq),
+            ).fetchall()
+        return [self._load(RunEvent, row["payload"]) for row in rows]
+
     def save_finding(self, finding: Finding) -> Finding:
         with self._connect() as conn:
             conn.execute(
@@ -107,8 +157,15 @@ class Storage:
             ).fetchone()
         return self._load(Finding, row["payload"]) if row else None
 
+    def list_findings(self, limit: int = 200) -> list[Finding]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT payload FROM findings ORDER BY created_at DESC LIMIT ?", (limit,)
+            ).fetchall()
+        return [self._load(Finding, row["payload"]) for row in rows]
+
     def save_referee_result(self, result: RefereeResult) -> RefereeResult:
-        result_id = f"ref_{result.finding_id}_{int(datetime.now(timezone.utc).timestamp())}"
+        result_id = f"ref_{result.finding_id}_{uuid4().hex[:8]}"
         with self._connect() as conn:
             conn.execute(
                 """
@@ -137,6 +194,13 @@ class Storage:
             ).fetchall()
         return [self._load(RefereeResult, row["payload"]) for row in rows]
 
+    def list_all_referee_results(self) -> list[RefereeResult]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT payload FROM referee_results ORDER BY created_at"
+            ).fetchall()
+        return [self._load(RefereeResult, row["payload"]) for row in rows]
+
     def save_patch_attempt(self, patch: PatchAttempt) -> PatchAttempt:
         with self._connect() as conn:
             conn.execute(
@@ -153,6 +217,25 @@ class Storage:
                 ),
             )
         return patch
+
+    def get_patch_attempt(self, patch_id: str) -> PatchAttempt | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT payload FROM patch_attempts WHERE id = ?", (patch_id,)
+            ).fetchone()
+        return self._load(PatchAttempt, row["payload"]) if row else None
+
+    def list_patch_attempts(self, finding_id: str) -> list[PatchAttempt]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT payload FROM patch_attempts
+                WHERE finding_id = ?
+                ORDER BY created_at DESC
+                """,
+                (finding_id,),
+            ).fetchall()
+        return [self._load(PatchAttempt, row["payload"]) for row in rows]
 
     def save_patch_result(self, result: PatchResult) -> PatchResult:
         result_id = f"pres_{result.patch_id}"
@@ -172,3 +255,13 @@ class Storage:
                 ),
             )
         return result
+
+    def list_patch_results(self, finding_id: str | None = None) -> list[PatchResult]:
+        query = "SELECT payload FROM patch_results"
+        params: tuple[str, ...] = ()
+        if finding_id is not None:
+            query += " WHERE finding_id = ?"
+            params = (finding_id,)
+        with self._connect() as conn:
+            rows = conn.execute(query + " ORDER BY created_at DESC", params).fetchall()
+        return [self._load(PatchResult, row["payload"]) for row in rows]

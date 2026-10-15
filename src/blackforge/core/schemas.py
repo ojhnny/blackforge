@@ -54,6 +54,7 @@ class Finding(BaseModel):
     test_path: str | None = None
     severity: Severity = Severity.MEDIUM
     confidence: float = Field(ge=0.0, le=1.0, default=0.5)
+    run_id: str | None = None
     created_at: datetime = Field(default_factory=_utcnow)
 
 
@@ -88,6 +89,9 @@ class PatchResult(BaseModel):
     regression_tests_passed: bool
     static_checks_passed: bool
     new_failures: list[str] = Field(default_factory=list)
+    patch_applied: bool = True
+    regression_passed: int = 0
+    regression_total: int = 0
     patch_accepted: bool
     rejection_reason: str | None = None
     execution_output: str = ""
@@ -106,11 +110,58 @@ class ExecutionResult(BaseModel):
     workdir: str
 
 
+StageId = Literal["analyze", "discover", "reproduce", "patch", "verify"]
+STAGE_IDS: tuple[StageId, ...] = ("analyze", "discover", "reproduce", "patch", "verify")
+
+
+class StageRecord(BaseModel):
+    id: StageId
+    status: Literal["pending", "active", "done", "skipped", "failed"] = "pending"
+    detail: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    duration_ms: int | None = None
+
+
 class StoredRun(BaseModel):
     id: str = Field(default_factory=lambda: _new_id("run"))
     repo_path: str
-    status: Literal["created", "reproducing", "completed", "failed"] = "created"
+    repo_id: str | None = None
+    mode: Literal["full", "discover_only", "verify_existing"] = "full"
+    status: Literal[
+        "created", "running", "reproducing", "completed", "failed", "cancelled"
+    ] = "created"
+    stages: list[StageRecord] = Field(
+        default_factory=lambda: [StageRecord(id=stage) for stage in STAGE_IDS]
+    )
+    finding_ids: list[str] = Field(default_factory=list)
+    patch_ids: list[str] = Field(default_factory=list)
     finding_id: str | None = None
     referee_result_id: str | None = None
+    error: str | None = None
     created_at: datetime = Field(default_factory=_utcnow)
     completed_at: datetime | None = None
+
+
+class RunEvent(BaseModel):
+    """One append-only record of something that happened during a run."""
+
+    run_id: str
+    seq: int = 0
+    type: Literal[
+        "run_started",
+        "stage_started",
+        "stage_completed",
+        "stage_skipped",
+        "log",
+        "run_completed",
+        "run_failed",
+        "run_cancelled",
+    ]
+    stage: StageId | None = None
+    message: str = ""
+    created_at: datetime = Field(default_factory=_utcnow)
+
+    @property
+    def terminal(self) -> bool:
+        return self.type in {"run_completed", "run_failed", "run_cancelled"}
